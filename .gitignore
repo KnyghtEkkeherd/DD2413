@@ -1,0 +1,7 @@
+# Python venv internals (recreate with: python -m venv . && pip install -r requirements.txt)
+bin/
+include/
+lib/
+lib64
+pyvenv.cfg
+__pycache__/
