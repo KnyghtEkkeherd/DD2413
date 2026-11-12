@@ -1,0 +1,3 @@
+[submodule "misty-python-sdk"]
+	path = misty-python-sdk
+	url = https://github.com/MistyCommunity/Python-SDK.git

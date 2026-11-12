@@ -1,7 +1,7 @@
 certifi==2026.10.23
 charset-normalizer==3.5.2
 idna==3.20
--e git+https://github.com/MistyCommunity/Python-SDK.git@2b7a58f63dc5c4dc89f96078c50795e9408c92ba#egg=Misty_SDK
+-e ./misty-python-sdk
 platformdirs==4.14.5
 requests==2.34.2
 six==1.17.0

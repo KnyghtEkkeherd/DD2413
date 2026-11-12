@@ -1,7 +1,4 @@
-# Python venv internals (recreate with: python -m venv . && pip install -r requirements.txt)
-bin/
-include/
-lib/
-lib64
-pyvenv.cfg
+# Python venv (recreate with: python3 -m venv misty_venv && source misty_venv/bin/activate && pip install -r requirements.txt)
+misty_venv/
 __pycache__/
+*.egg-info/
