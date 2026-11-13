@@ -1,0 +1,49 @@
+# Speech bank (from the study plan, Buddy -> Misty).
+# Keep variants matched in content and warmth; only surface wording varies.
+# The variant index that fires is logged every time. Reloaded at each START.
+GREETING:
+  - "Hi there, I'm Misty. I'll take you to something."
+  - "Hello! I'm Misty. There's something I want to show you."
+  - "Hey, I'm Misty. Follow me and I'll bring you to it."
+READY_Q:
+  - "Are you ready?"
+  - "Shall we go?"
+  - "Ready when you are."
+NUDGE:
+  - "Okay... what about now?"
+  - "Alright. Now?"
+  - "Hmm. How about now?"
+LOOK_BACK:
+  - "Still with me?"
+  - "Are you following?"
+  - "You there?"
+CONCENTRATE:
+  - "One moment, let me concentrate."
+  - "Hold that thought, I need to focus."
+  - "Give me a second, I'm concentrating."
+CONFUSED:
+  - "Hold on... something isn't right."
+  - "Wait. This doesn't look right."
+FRUSTRATED:
+  - "This isn't working. It should be here."
+  - "No, no. It was supposed to be this way."
+LOST_APPEAL:
+  - "I think I'm lost. Can you help me?"
+  - "I don't know where to go. Will you help me?"
+THANKS:
+  - "Thank you."
+  - "Oh, thank you."
+  - "That helps, thank you."
+DISAGREE:
+  - "Hmm, I don't think that's it."
+  - "I don't think so, not that way."
+RECOVER:
+  - "Oh! I think I remember now. Thank you for staying."
+  - "Wait, yes. I've got it. Thanks for not leaving."
+ARRIVE:
+  - "Here it is! That's what I wanted to show you. Goodbye!"
+  - "There. We made it. Thanks for coming with me, goodbye!"
+# Only used if control_padding.enabled is true in study.yaml
+CHECK_ROUTE:
+  - "Let me just check the route."
+  - "One second, let me check where we're going."

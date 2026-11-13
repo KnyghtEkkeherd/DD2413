@@ -55,10 +55,10 @@ class MistyTeleop(Node):
         try:
             r = fn(*args, **kwargs)
             if not r.ok:
-                self.get_logger().warn(f'{what}: HTTP {r.status_code} {r.text[:200]}',
+                self.get_logger().warning(f'{what}: HTTP {r.status_code} {r.text[:200]}',
                                        throttle_duration_sec=2.0)
         except Exception as e:
-            self.get_logger().warn(f'{what} failed: {e}', throttle_duration_sec=2.0)
+            self.get_logger().warning(f'{what} failed: {e}', throttle_duration_sec=2.0)
 
     def on_cmd_vel(self, msg: Twist):
         lin = clamp(msg.linear.x * self.p('linear_scale'), -100.0, 100.0)

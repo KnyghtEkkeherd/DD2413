@@ -42,10 +42,10 @@ class MistyCamera(Node):
         try:
             r = self.misty.camera_service_enabled()
             if r.ok and r.json().get('result') is False:
-                self.get_logger().warn('Camera service disabled on Misty; enabling it')
+                self.get_logger().warning('Camera service disabled on Misty; enabling it')
                 self.misty.enable_camera_service()
         except Exception as e:  # robot unreachable: grab() will keep retrying
-            self.get_logger().warn(f'Could not check camera service: {e}')
+            self.get_logger().warning(f'Could not check camera service: {e}')
 
     def grab(self):
         try:
@@ -54,7 +54,7 @@ class MistyCamera(Node):
             r.raise_for_status()
             data, fmt = self._decode(r)
         except Exception as e:
-            self.get_logger().warn(f'take_picture failed: {e}', throttle_duration_sec=5.0)
+            self.get_logger().warning(f'take_picture failed: {e}', throttle_duration_sec=5.0)
             return
         msg = CompressedImage()
         msg.header.stamp = self.get_clock().now().to_msg()

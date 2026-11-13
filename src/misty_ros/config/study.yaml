@@ -1,0 +1,52 @@
+# Study configuration for the wizard state machine. Reloaded at each START,
+# so you can tune between runs without restarting ROS.
+
+timing:                     # seconds, from the study plan
+  consent_timeout: 12       # S2/S2b: no YES/NO within this -> nudge
+  max_nudges: 3             # after this many nudges go to S3 anyway
+  half_pause_timeout: 10    # S4: no END_* within this -> configured condition
+  confusion: 8              # S6 duration
+  frustration: 8            # S7 duration
+  help_wait_timeout: 120    # S8w: total time before automatic recovery
+  ack: 3                    # S8t / S8y / S8n duration
+  look_back_interval: 15    # look back if this long since the last one (checked between segments)
+  look_back_hold: 2         # keep looking back this long after speaking
+  segment_settle: 0.5       # pause after each drive segment
+
+speech:                     # used to wait for speech to finish if Misty's
+  fallback_s_per_word: 0.4  # TextToSpeechComplete event isn't available
+  fallback_extra_s: 1.0
+  completion_margin_s: 5    # max extra wait beyond the estimate
+
+look_back:
+  head_yaw_deg: 81          # Misty's max yaw (+ = left). Plan says ~160 deg; Misty's head can't.
+  head_velocity: 70         # % of max head speed
+
+# The plan suggests padding the control pause so both conditions last about
+# as long. Your decision: enable and set extra_wait (seconds) to pad.
+control_padding:
+  enabled: false
+  extra_wait: 0
+
+nudge:                      # wizard drift correction
+  turn_velocity: 30         # % angular speed
+  turn_ms: 500
+  forward_velocity: 25      # % linear speed
+  forward_ms: 700
+
+# Route: fixed motion segments executed in order (no SLAM).
+#   forward: {velocity: % of max speed (negative = back), time_ms}
+#   turn:    {degrees: + left / - right, velocity: % angular speed, time_ms}
+#   look_back: true -> look back after this segment (tape marker)
+# Segments 0..halfway_index run before the halfway pause (S3 -> S4), the rest
+# after it (S5). PLACEHOLDER VALUES: tune on the taped floor (~10 dry runs).
+# Keep segments shorter than look_back_interval so look-backs stay regular.
+route:
+  halfway_index: 2
+  segments:
+    - {forward: {velocity: 30, time_ms: 4000}}
+    - {turn: {degrees: -90, velocity: 30, time_ms: 3000}, look_back: true}
+    - {forward: {velocity: 30, time_ms: 4000}}
+    - {forward: {velocity: 30, time_ms: 4000}}
+    - {turn: {degrees: 90, velocity: 30, time_ms: 3000}}
+    - {forward: {velocity: 30, time_ms: 3000}}
