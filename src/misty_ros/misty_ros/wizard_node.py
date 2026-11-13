@@ -36,6 +36,7 @@ import yaml
 from ament_index_python.packages import get_package_share_directory
 from rclpy.node import Node
 from rclpy.qos import DurabilityPolicy, QoSProfile
+from geometry_msgs.msg import Vector3
 from std_msgs.msg import String
 
 from misty_ros.sdk import make_robot
@@ -139,8 +140,9 @@ class MistyWizard(Node):
 
         latched = QoSProfile(depth=1, durability=DurabilityPolicy.TRANSIENT_LOCAL)
         self.pub = {n: self.create_publisher(String, f'wizard/{n}', latched)
-                    for n in ('state', 'allowed', 'cue', 'said')}
+                    for n in ('state', 'allowed', 'cue', 'said', 'last')}
         self.create_subscription(String, 'wizard/event', self.on_wizard_msg, 10)
+        self.head_pub = self.create_publisher(Vector3, 'misty/head_position', 10)
 
         self.worker = threading.Thread(target=self.run, daemon=True)
         self.worker.start()
@@ -329,14 +331,14 @@ class MistyWizard(Node):
         except Exception as e:
             self.get_logger().warning(f'{what} failed: {e}')
 
-    def say(self, category, wait=True):
+    def say(self, category, wait=True, source='auto'):
         variants = self.speech.get(category) or [category]
         choices = [i for i in range(len(variants)) if i != self.last_variant.get(category)] or [0]
         idx = random.choice(choices)
         self.last_variant[category] = idx
         text = variants[idx]
         uid = f'wiz_{uuid.uuid4().hex[:12]}'
-        self.log('auto', f'SAY_{category}', variant=idx, detail=text)
+        self.log(source, f'SAY_{category}', variant=idx, detail=text)
         self.publish('said', f'{category}[{idx}]: {text}')
         self.call('speak', self.misty.speak, text=text, flush=True, utteranceId=uid)
         if not wait:
@@ -386,6 +388,7 @@ class MistyWizard(Node):
         lb = self.cfg['look_back']
         self.call('move_head', self.misty.move_head, pitch=0.0, roll=0.0, yaw=float(yaw),
                   velocity=float(lb['head_velocity']), units='degrees')
+        self.head_pub.publish(Vector3(x=0.0, y=0.0, z=float(yaw)))  # keep head teleop in sync
 
     def halt(self):
         self.call('stop', self.misty.stop)
@@ -439,6 +442,9 @@ class MistyWizard(Node):
                 self.get_logger().error(f'Config error: {e}')
                 continue
             break
+        self.open_session_log(pid, cond)
+
+    def open_session_log(self, pid, cond):
         self.participant, self.condition = pid, cond
         out = Path(self.get_parameter('session_dir').value).expanduser()
         out.mkdir(parents=True, exist_ok=True)

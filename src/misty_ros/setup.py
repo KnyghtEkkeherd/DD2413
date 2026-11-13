@@ -22,7 +22,8 @@ setup(
         'console_scripts': [
             'camera_node = misty_ros.camera_node:main',
             'teleop_node = misty_ros.teleop_node:main',
-            'wizard_node = misty_ros.wizard_node:main',
+            'wizard_auto = misty_ros.wizard_node:main',
+            'wizard_manual = misty_ros.wizard_manual_node:main',
         ],
     },
 )

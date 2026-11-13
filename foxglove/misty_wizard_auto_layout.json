@@ -136,6 +136,7 @@
       "value": "{\"data\": \"ABORT\"}"
     },
     "RawMessages!rawmessages15": {
+      "foxglovePanelTitle": "State",
       "topicPath": "/wizard/state.data",
       "diffEnabled": false,
       "diffMethod": "custom",
@@ -144,38 +145,40 @@
       "fontSize": 22
     },
     "RawMessages!rawmessages16": {
+      "foxglovePanelTitle": "Valid buttons now",
       "topicPath": "/wizard/allowed.data",
       "diffEnabled": false,
       "diffMethod": "custom",
       "diffTopicPath": "",
       "showFullMessageForDiff": false,
-      "fontSize": 18
+      "fontSize": 16
     },
     "RawMessages!rawmessages17": {
+      "foxglovePanelTitle": "Emotion cue (phone app)",
       "topicPath": "/wizard/cue.data",
       "diffEnabled": false,
       "diffMethod": "custom",
       "diffTopicPath": "",
       "showFullMessageForDiff": false,
-      "fontSize": 18
+      "fontSize": 16
     },
     "RawMessages!rawmessages18": {
+      "foxglovePanelTitle": "Misty said",
       "topicPath": "/wizard/said.data",
       "diffEnabled": false,
       "diffMethod": "custom",
       "diffTopicPath": "",
       "showFullMessageForDiff": false,
-      "fontSize": 18
+      "fontSize": 16
     },
-    "Parameters!parameters19": {
-      "title": "Session (set participant_id + condition, then START)"
-    },
-    "Image!image20": {
+    "Image!image19": {
+      "foxglovePanelTitle": "Misty camera",
       "imageMode": {
         "imageTopic": "/misty/camera/image/compressed"
       }
     },
-    "Teleop!teleop21": {
+    "Teleop!teleop20": {
+      "foxglovePanelTitle": "DRIVE (arrows = forward/back/turn)",
       "topic": "/cmd_vel",
       "publishRate": 5,
       "upButton": {
@@ -195,7 +198,8 @@
         "value": -1
       }
     },
-    "Teleop!teleop22": {
+    "Teleop!teleop21": {
+      "foxglovePanelTitle": "HEAD / CAMERA (up/down = tilt, left/right = pan)",
       "topic": "/misty/head_cmd",
       "publishRate": 5,
       "upButton": {
@@ -214,6 +218,9 @@
         "field": "angular-z",
         "value": -1
       }
+    },
+    "Parameters!parameters22": {
+      "title": "Session: set participant_id + condition, then START"
     }
   },
   "globalVariables": {},
@@ -223,10 +230,10 @@
   },
   "layout": {
     "first": {
-      "first": "Image!image20",
+      "first": "Image!image19",
       "second": {
-        "first": "Teleop!teleop21",
-        "second": "Teleop!teleop22",
+        "first": "Teleop!teleop20",
+        "second": "Teleop!teleop21",
         "direction": "row",
         "splitPercentage": 50.0
       },
@@ -292,7 +299,7 @@
                     "splitPercentage": 50.0
                   },
                   "direction": "row",
-                  "splitPercentage": 33.333333333333336
+                  "splitPercentage": 33.33333333333333
                 },
                 "second": {
                   "first": "Publish!publish11",
@@ -322,7 +329,7 @@
           "direction": "column",
           "splitPercentage": 20.0
         },
-        "second": "Parameters!parameters19",
+        "second": "Parameters!parameters22",
         "direction": "column",
         "splitPercentage": 64.28571428571429
       },

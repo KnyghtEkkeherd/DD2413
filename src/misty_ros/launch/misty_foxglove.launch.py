@@ -24,6 +24,8 @@ def generate_launch_description():
         DeclareLaunchArgument('height', default_value='480'),
         DeclareLaunchArgument('linear_scale', default_value='30.0', description='% speed per Twist unit'),
         DeclareLaunchArgument('angular_scale', default_value='40.0', description='% turn rate per Twist unit'),
+        DeclareLaunchArgument('head_step_deg', default_value='5.0', description='Head move per head teleop message'),
+        DeclareLaunchArgument('head_velocity', default_value='60.0', description='Head speed, % of max'),
     ]
     ip = LaunchConfiguration('misty_ip')
 
@@ -37,7 +39,9 @@ def generate_launch_description():
     teleop = Node(
         package='misty_ros', executable='teleop_node', name='misty_teleop', output='screen',
         parameters=[{'misty_ip': ip, 'linear_scale': num('linear_scale', float),
-                     'angular_scale': num('angular_scale', float)}])
+                     'angular_scale': num('angular_scale', float),
+                     'head_step_deg': num('head_step_deg', float),
+                     'head_velocity': num('head_velocity', float)}])
     bridge = Node(
         package='foxglove_bridge', executable='foxglove_bridge', name='foxglove_bridge', output='screen',
         parameters=[{'port': num('port', int), 'address': LaunchConfiguration('address')}])

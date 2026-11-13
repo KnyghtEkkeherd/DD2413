@@ -6,12 +6,15 @@
                 released button). Velocities are % of max (-100..100).
 /misty/head_cmd linear.x -> tilt up(+)/down(-), angular.z -> pan left(+)/right(-).
                 Each message nudges the head by head_step_deg.
+/misty/head_position (geometry_msgs/Vector3, degrees: x=pitch, y=roll, z=yaw)
+                Other nodes (the wizard) publish head moves they make here, so
+                the next head_cmd nudges from where the head really is.
 
 These match the Foxglove Teleop panel's default button mapping, so two Teleop
 panels (one per topic) work without reconfiguring the buttons.
 """
 import rclpy
-from geometry_msgs.msg import Twist
+from geometry_msgs.msg import Twist, Vector3
 from rclpy.node import Node
 
 from misty_ros.sdk import make_robot
@@ -32,7 +35,7 @@ class MistyTeleop(Node):
         self.declare_parameter('linear_scale', 30.0)    # Twist 1.0 -> 30% speed
         self.declare_parameter('angular_scale', 40.0)
         self.declare_parameter('drive_time_ms', 600)
-        self.declare_parameter('head_step_deg', 4.0)
+        self.declare_parameter('head_step_deg', 5.0)
         self.declare_parameter('head_velocity', 60.0)   # % of max head speed
         self.declare_parameter('request_timeout', 1.0)
 
@@ -46,6 +49,7 @@ class MistyTeleop(Node):
 
         self.create_subscription(Twist, 'cmd_vel', self.on_cmd_vel, 1)
         self.create_subscription(Twist, 'misty/head_cmd', self.on_head_cmd, 1)
+        self.create_subscription(Vector3, 'misty/head_position', self.on_head_position, 10)
         self.get_logger().info(f'Teleop for Misty {ip}: /cmd_vel drives, /misty/head_cmd aims head')
 
     def p(self, name):
@@ -72,6 +76,10 @@ class MistyTeleop(Node):
                    linearVelocity=lin, angularVelocity=ang,
                    timeMs=int(self.p('drive_time_ms')))
         self.moving = True
+
+    def on_head_position(self, msg: Vector3):
+        self.pitch = clamp(msg.x, PITCH_MIN, PITCH_MAX)
+        self.yaw = clamp(msg.z, YAW_MIN, YAW_MAX)
 
     def on_head_cmd(self, msg: Twist):
         if msg.linear.x == 0.0 and msg.angular.z == 0.0:

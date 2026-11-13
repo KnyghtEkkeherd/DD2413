@@ -1,7 +1,10 @@
-"""Full study setup: camera + teleop + foxglove_bridge + wizard state machine.
+"""Full study setup: camera + teleop + foxglove_bridge + wizard.
 
     ros2 launch misty_ros wizard.launch.py misty_ip:=192.168.1.237 \
         participant_id:=P01 condition:=BREAKDOWN
+
+mode:=manual (default): the wizard triggers every action from Foxglove.
+mode:=auto: the S0..S9 state machine from the study plan runs the session.
 
 participant_id and condition can also be set/changed between sessions in
 Foxglove's Parameters panel (/misty_wizard); they are read when START is pressed.
@@ -21,6 +24,7 @@ def generate_launch_description():
     ip = LaunchConfiguration('misty_ip')
     return LaunchDescription([
         DeclareLaunchArgument('misty_ip', default_value=EnvironmentVariable('MISTY_IP', default_value='')),
+        DeclareLaunchArgument('mode', default_value='manual', description='manual or auto'),
         DeclareLaunchArgument('participant_id', default_value=''),
         DeclareLaunchArgument('condition', default_value='', description='CONTROL or BREAKDOWN'),
         DeclareLaunchArgument('study_config', default_value=os.path.join(share, 'config', 'study.yaml')),
@@ -29,7 +33,8 @@ def generate_launch_description():
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource(os.path.join(share, 'launch', 'misty_foxglove.launch.py')),
             launch_arguments={'misty_ip': ip}.items()),
-        Node(package='misty_ros', executable='wizard_node', name='misty_wizard', output='screen',
+        Node(package='misty_ros', executable=['wizard_', LaunchConfiguration('mode')],
+             name='misty_wizard', output='screen',
              parameters=[{
                  'misty_ip': ip,
                  'participant_id': LaunchConfiguration('participant_id'),
