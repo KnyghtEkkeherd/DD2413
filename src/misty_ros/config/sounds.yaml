@@ -1,0 +1,39 @@
+# Misty's built-in (pre-installed) sound files, grouped by emotion. One
+# Foxglove button each, on the "Sounds" tab. Played with PLAY:<file>.
+#
+# NOT YET CHECKED AGAINST THE ROBOT: these are Misty's standard default file
+# names. With Misty online, run
+#     python3 scripts/check_misty_sounds.py <MISTY_IP>
+# to see which exist (and what else is available), edit this file, then
+# re-run scripts/make_foxglove_layout.py and re-import the layout.
+volume: 80          # 0-100
+groups:
+  Sad:
+    - s_Sadness.wav
+    - s_Sadness2.wav
+    - s_Sadness3.wav
+    - s_Grief.wav
+    - s_Grief2.wav
+  Confused:
+    - s_DisorientedConfused.wav
+    - s_DisorientedConfused2.wav
+    - s_DisorientedConfused3.wav
+    - s_PhraseUhOh.wav
+  Frustrated:
+    - s_Annoyance.wav
+    - s_Annoyance2.wav
+    - s_Anger.wav
+    - s_PhraseNoNoNo.wav
+  Happy:
+    - s_Joy.wav
+    - s_Joy2.wav
+    - s_Joy3.wav
+    - s_Ecstacy.wav
+    - s_Love.wav
+  Other:
+    - s_Acceptance.wav
+    - s_Awe.wav
+    - s_Amazement.wav
+    - s_PhraseHello.wav
+    - s_PhraseByeBye.wav
+    - s_PhraseOopsy.wav

@@ -24,8 +24,8 @@ def generate_launch_description():
         DeclareLaunchArgument('height', default_value='480'),
         DeclareLaunchArgument('linear_scale', default_value='30.0', description='% speed per Twist unit'),
         DeclareLaunchArgument('angular_scale', default_value='40.0', description='% turn rate per Twist unit'),
-        DeclareLaunchArgument('head_step_deg', default_value='5.0', description='Head move per head teleop message'),
-        DeclareLaunchArgument('head_velocity', default_value='60.0', description='Head speed, % of max'),
+        DeclareLaunchArgument('head_step_deg', default_value='10.0', description='Head move (deg) per head teleop message'),
+        DeclareLaunchArgument('head_velocity', default_value='100.0', description='Head speed, % of max'),
     ]
     ip = LaunchConfiguration('misty_ip')
 

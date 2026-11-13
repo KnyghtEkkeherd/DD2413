@@ -46,7 +46,11 @@ class Handler(BaseHTTPRequestHandler):
             self._send({'result': True, 'status': 'Success'})
 
     def do_POST(self):
-        LOG.write(f'POST {self.path} {json.dumps(self._body())}\n')
+        body = self._body()
+        LOG.write(f'POST {self.path} {json.dumps(body)}\n')
+        if self.path == '/api/audio/play' and not str(body.get('fileName', '')).startswith('s_'):
+            self._send({'result': False, 'status': 'Failed', 'error': 'File not found'})
+            return
         self._send({'result': True, 'status': 'Success'})
 
     def log_message(self, *args):

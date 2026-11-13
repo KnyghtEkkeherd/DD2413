@@ -1,6 +1,7 @@
 # Speech bank (from the study plan, Buddy -> Misty).
 # Keep variants matched in content and warmth; only surface wording varies.
-# The variant index that fires is logged every time. Reloaded at each START.
+# Each category is one button in the Foxglove Speech tab; a random variant
+# is spoken and its index logged. Reloaded at each START.
 GREETING:
   - "Hi there, I'm Misty. I'll take you to something."
   - "Hello! I'm Misty. There's something I want to show you."
@@ -27,9 +28,12 @@ CONFUSED:
 FRUSTRATED:
   - "This isn't working. It should be here."
   - "No, no. It was supposed to be this way."
-LOST_APPEAL:
-  - "I think I'm lost. Can you help me?"
-  - "I don't know where to go. Will you help me?"
+LOST:
+  - "I think I'm lost."
+  - "I don't know where I am."
+ASK_HELP:
+  - "Can you help me?"
+  - "Will you help me?"
 THANKS:
   - "Thank you."
   - "Oh, thank you."
@@ -43,7 +47,6 @@ RECOVER:
 ARRIVE:
   - "Here it is! That's what I wanted to show you. Goodbye!"
   - "There. We made it. Thanks for coming with me, goodbye!"
-# Only used if control_padding.enabled is true in study.yaml
 CHECK_ROUTE:
   - "Let me just check the route."
   - "One second, let me check where we're going."
