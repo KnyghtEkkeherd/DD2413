@@ -1,0 +1,48 @@
+    "neutral": {
+      "pitch": 1.0,
+      "rate": 1.0,
+      "voice": "",
+      "language": "en-US"
+    },
+    "happy": {
+      "pitch": 1.25,
+      "rate": 1.1,
+      "voice": "",
+      "language": "en-US"
+    },
+    "confused": {
+      "pitch": 1.2,
+      "rate": 0.85,
+      "voice": "",
+      "language": "en-US"
+    },
+    "panicked": {
+      "pitch": 1.45,
+      "rate": 1.35,
+      "voice": "",
+      "language": "en-US"
+    },
+    "embarrassed": {
+      "pitch": 0.85,
+      "rate": 0.75,
+      "voice": "",
+      "language": "en-US"
+    },
+    "sad": {
+      "pitch": 0.75,
+      "rate": 0.7,
+      "voice": "",
+      "language": "en-US"
+    },
+    "dramatic": {
+      "pitch": 1.3,
+      "rate": 0.7,
+      "voice": "",
+      "language": "en-US"
+    },
+    "relieved": {
+      "pitch": 1.1,
+      "rate": 0.95,
+      "voice": "",
+      "language": "en-US"
+    }

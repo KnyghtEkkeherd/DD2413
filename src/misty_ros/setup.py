@@ -23,6 +23,7 @@ setup(
             'camera_node = misty_ros.camera_node:main',
             'teleop_node = misty_ros.teleop_node:main',
             'wizard_node = misty_ros.wizard_node:main',
+            'keyboard_teleop = misty_ros.keyboard_teleop:main',
         ],
     },
 )
