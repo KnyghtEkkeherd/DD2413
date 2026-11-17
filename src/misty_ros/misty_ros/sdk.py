@@ -38,16 +38,27 @@ def robot_commands_class():
 
 
 def make_robot(ip: str, timeout: float):
-    """Return an SDK RobotCommands whose HTTP requests all use `timeout`.
+    """Return an SDK RobotCommands with a request timeout and kept-alive connections.
 
-    The SDK's helpers pass no timeout to `requests`, so a robot that drops off
-    the network would block a node forever; this subclass injects one.
+    - The SDK's helpers pass no timeout to `requests`, so a robot that drops off
+      the network would block a node forever; every request gets `timeout`.
+    - The SDK opens a new HTTP connection per command (~270 ms per request on
+      Misty vs ~115 ms on a reused one), so each thread gets its own persistent
+      requests.Session (Sessions aren't guaranteed thread-safe).
     """
-    base = robot_commands_class()
+    import threading
 
-    class TimedRobot(base):
+    import requests
+
+    base = robot_commands_class()
+    local = threading.local()
+
+    class FastRobot(base):
         def _generic_request(self, verb, endpoint, **kwargs):
             kwargs.setdefault('timeout', timeout)
-            return super()._generic_request(verb, endpoint, **kwargs)
+            session = getattr(local, 'session', None)
+            if session is None:
+                session = local.session = requests.Session()
+            return session.request(verb, f'http://{self.ip}/api/{endpoint}', **kwargs)
 
-    return TimedRobot(ip)
+    return FastRobot(ip)

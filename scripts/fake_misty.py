@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Minimal fake Misty REST API for dry-running the ROS nodes without the robot.
 
-    python3 scripts/fake_misty.py [port] [request_log]
+    python3 scripts/fake_misty.py [port] [request_log] [reply_delay_s]
     ros2 launch misty_ros wizard.launch.py misty_ip:=127.0.0.1:8099 ...
 
 Serves a placeholder camera image, accepts every command, and logs each
@@ -11,14 +11,18 @@ speech timing and touch must be simulated with the TOUCH (sim) button.
 import base64
 import json
 import sys
+import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 PORT = int(sys.argv[1]) if len(sys.argv) > 1 else 8099
 LOG = open(sys.argv[2] if len(sys.argv) > 2 else '/dev/stdout', 'w', buffering=1)
+DELAY = float(sys.argv[3]) if len(sys.argv) > 3 else 0.0   # simulate Misty's reply time
 IMG = b'\xff\xd8\xff\xe0FAKEJPEG-' + bytes(range(256)) + b'\xff\xd9'
 
 
 class Handler(BaseHTTPRequestHandler):
+    protocol_version = 'HTTP/1.1'   # allow kept-alive connections like the real robot
+
     def _body(self):
         n = int(self.headers.get('Content-Length') or 0)
         try:
@@ -27,6 +31,8 @@ class Handler(BaseHTTPRequestHandler):
             return {}
 
     def _send(self, obj):
+        if DELAY:
+            time.sleep(DELAY)
         b = json.dumps(obj).encode()
         self.send_response(200)
         self.send_header('Content-Type', 'application/json')
@@ -37,7 +43,7 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         body = self._body()
         if self.path != '/api/cameras/rgb':
-            LOG.write(f'GET {self.path} {json.dumps(body)}\n')
+            LOG.write(f'{time.time():.3f} GET {self.path} {json.dumps(body)}\n')
         if self.path == '/api/cameras/rgb':
             self._send({'result': {'base64': base64.b64encode(IMG).decode(), 'contentType': 'image/jpeg',
                                    'width': body.get('width'), 'height': body.get('height')},
@@ -47,7 +53,7 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         body = self._body()
-        LOG.write(f'POST {self.path} {json.dumps(body)}\n')
+        LOG.write(f'{time.time():.3f} POST {self.path} {json.dumps(body)}\n')
         if self.path == '/api/audio/play' and not str(body.get('fileName', '')).startswith('s_'):
             self._send({'result': False, 'status': 'Failed', 'error': 'File not found'})
             return

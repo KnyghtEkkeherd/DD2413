@@ -12,6 +12,7 @@ misty_teleop:
     drive_time_ms: 600      # each drive command lasts this long (safety stop)
     head_step_deg: 13.0     # head move per head message (Foxglove/keyboard: 10 msg/s)
     head_velocity: 100.0    # head motor speed, % of max
+    arm_velocity: 80.0      # arm motor speed, % of max
 
 misty_gamepad_teleop:
   ros__parameters:
@@ -25,6 +26,13 @@ misty_gamepad_teleop:
     invert_head_tilt: false # true: push stick up to look down
     invert_head_pan: false
     timeout_s: 0.5          # stop if the controller stops sending
+    # Triggers move the arms (RT = right, LT = left): released = arm_down_deg,
+    # fully pressed = arm_up_deg, in between = proportional. Misty arm angles in
+    # degrees (check on the robot: roughly 90 = down along the body, 0 = forward,
+    # negative = raised). Swap the two values to invert.
+    arm_down_deg: 90.0
+    arm_up_deg: -29.0
+    arm_min_change_deg: 3.0 # only send when an arm target moves this much
 
 misty_keyboard_teleop:
   ros__parameters:

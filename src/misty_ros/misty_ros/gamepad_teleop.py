@@ -9,7 +9,9 @@ same topics as the Foxglove Teleop panels:
                                                  speed scales with stick deflection
     B             STOP driving, speech, sounds  -> /wizard/event STOP
                   (driving stays off until the left stick is released)
-    Y             head centre                   -> /wizard/event HEAD_CENTER
+    A / Y         head centre                   -> /misty/head_goal (0, 0, 0)
+    RT / LT       right / left arm: released = down, fully pressed = up,
+                  in between = in between       -> /misty/arms_cmd
     LB / RB       slower / faster driving
 
 Also republishes the raw state as sensor_msgs/Joy on /joy. If no packet
@@ -20,7 +22,9 @@ import json
 import socket
 
 import rclpy
-from geometry_msgs.msg import Twist
+import math
+
+from geometry_msgs.msg import Twist, Vector3
 from rclpy.node import Node
 from sensor_msgs.msg import Joy
 from std_msgs.msg import String
@@ -48,10 +52,16 @@ class GamepadTeleop(Node):
         self.declare_parameter('invert_drive_turn', False)
         self.declare_parameter('invert_head_tilt', False)
         self.declare_parameter('invert_head_pan', False)
+        self.declare_parameter('arm_down_deg', 90.0)       # arm angle with the trigger released
+        self.declare_parameter('arm_up_deg', -29.0)        # arm angle with the trigger fully pressed
+        self.declare_parameter('arm_min_change_deg', 3.0)  # only send when an arm moves this much
         self.cmd = self.create_publisher(Twist, 'cmd_vel', 10)
         self.head = self.create_publisher(Twist, 'misty/head_cmd', 10)
         self.joy = self.create_publisher(Joy, 'joy', 10)
         self.wizard = self.create_publisher(String, 'wizard/event', 10)
+        self.head_goal = self.create_publisher(Vector3, 'misty/head_goal', 10)
+        self.arms = self.create_publisher(Vector3, 'misty/arms_cmd', 10)
+        self.arm_sent = None                    # (left, right) degrees last sent
 
         port = int(self.get_parameter('port').value)
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -84,6 +94,7 @@ class GamepadTeleop(Node):
                 continue
             if not self.connected:
                 self.connected = True
+                self.arm_sent = None
                 self.get_logger().info(f'Controller connected from {addr[0]}: {latest.get("name", "?")}')
         if latest is None:
             return
@@ -109,9 +120,9 @@ class GamepadTeleop(Node):
             self.latched = True
             self.wizard.publish(String(data='STOP'))
             self.get_logger().info('B: STOP')
-        if pressed('y'):
-            self.wizard.publish(String(data='HEAD_CENTER'))
-            self.get_logger().info('Y: head centre')
+        if pressed('a') or pressed('y'):
+            self.head_goal.publish(Vector3(x=0.0, y=0.0, z=0.0))
+            self.get_logger().info('Head centre')
         if pressed('lb') or pressed('rb'):
             self.speed_i = max(0, min(len(self.speeds) - 1, self.speed_i + (1 if pressed('rb') else -1)))
             self.get_logger().info(f'Drive speed x{self.speeds[self.speed_i]}')
@@ -148,6 +159,7 @@ class GamepadTeleop(Node):
         elif self.driving:
             self.cmd.publish(Twist())          # stick released -> teleop node sends drive/stop
             self.driving = False
+        self.update_arms(s)
         tilt = -shape(float(s.get('ry', 0.0)), dz)
         pan = -shape(float(s.get('rx', 0.0)), dz)
         if self.get_parameter('invert_head_tilt').value:
@@ -160,6 +172,27 @@ class GamepadTeleop(Node):
             h.linear.x = tilt * gain           # teleop node: x head_step_deg per message
             h.angular.z = pan * gain
             self.head.publish(h)
+
+
+    def update_arms(self, s):
+        """Triggers (0 = released .. 1 = fully pressed) -> arm angles."""
+        down = float(self.get_parameter('arm_down_deg').value)
+        up = float(self.get_parameter('arm_up_deg').value)
+        def angle(t):
+            t = max(0.0, min(1.0, float(t)))
+            return down + t * (up - down)
+        target = (angle(s.get('lt', 0.0)), angle(s.get('rt', 0.0)))
+        if self.arm_sent is None:              # just connected: don't move the arms yet
+            self.arm_sent = target
+            return
+        step = float(self.get_parameter('arm_min_change_deg').value)
+        changed = [abs(t - a) >= step or (t != a and t in (up, down)) for t, a in zip(target, self.arm_sent)]
+        if not any(changed):
+            return
+        left = target[0] if changed[0] else math.nan
+        right = target[1] if changed[1] else math.nan
+        self.arms.publish(Vector3(x=left, y=right, z=0.0))
+        self.arm_sent = tuple(t if c else a for t, c, a in zip(target, changed, self.arm_sent))
 
 
 def main():

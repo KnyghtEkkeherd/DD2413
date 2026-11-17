@@ -90,7 +90,8 @@ Each session (on the Mac): `~/misty_pad/bin/python ~/gamepad_sender.py 192.168.6
 | Left stick | drive (up = forward, sideways = turn) |
 | Right stick | head / camera (up/down = tilt, left/right = pan; speed follows deflection) |
 | B | STOP driving, speech, sounds (driving stays off until the left stick is released) |
-| Y | head centre |
+| A or Y | head centre |
+| RT / LT | right / left arm: released = down, fully pressed = up, in between = in between (angles in `misty_params.yaml`: `arm_down_deg`, `arm_up_deg`) |
 | LB / RB | slower / faster driving |
 
 If the sender stops or the network drops, Misty stops within 0.5 s.
