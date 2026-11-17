@@ -1,0 +1,541 @@
+{
+  "_help": [
+    "Every event that makes Misty speak or play a sound. Each reaction = one Foxglove button",
+    "(re-run scripts/make_foxglove_layout.py and re-import the layout after adding/removing reactions;",
+    "edits to sentences/voices apply immediately, no restart).",
+    "Reaction fields: id (unique, used by buttons), label, group (Foxglove tab), color,",
+    "  voice (preset name from 'voices' or an object {pitch, rate, voice, language}),",
+    "  sentences: list of strings or {text, voice | pitch | rate} objects; a press says one at random",
+    "  button: false -> no Foxglove button (still usable in steps and via REACT:<id>),",
+    "  each: true -> one button per sentence instead of one random button,",
+    "  sounds: list of Misty audio files (a press plays one at random), volume (0-100),",
+    "  steps: a sequence: {say: <reaction id>} | {text: '...', voice: ...} | {sound: 'file.wav'} |",
+    "         {sound_from: <reaction id>} | {pause: seconds}; sounds take an optional wait (seconds).",
+    "Custom text from Foxglove can pick a voice with a prefix: [sad] I am so tired."
+  ],
+  "voices": {
+    "_help": "pitch / rate: 1.0 = normal (try roughly 0.5 - 2.0); voice: '' = Misty default; language: '' = default",
+    "neutral": {
+      "pitch": 1.0,
+      "rate": 1.0,
+      "voice": "",
+      "language": ""
+    },
+    "happy": {
+      "pitch": 1.25,
+      "rate": 1.1,
+      "voice": "",
+      "language": ""
+    },
+    "sad": {
+      "pitch": 0.8,
+      "rate": 0.8,
+      "voice": "",
+      "language": ""
+    },
+    "angry": {
+      "pitch": 0.9,
+      "rate": 1.2,
+      "voice": "",
+      "language": ""
+    },
+    "confused": {
+      "pitch": 1.1,
+      "rate": 0.9,
+      "voice": "",
+      "language": ""
+    }
+  },
+  "reactions": [
+    {
+      "id": "FAILURE",
+      "label": "⚠ FAILURE: lost + sad sound + ask for help",
+      "group": "Main",
+      "color": "#d33b3b",
+      "steps": [
+        {
+          "say": "LOST"
+        },
+        {
+          "pause": 0.5
+        },
+        {
+          "sound_from": "SOUND_SAD",
+          "wait": 3.0
+        },
+        {
+          "say": "ASK_HELP"
+        }
+      ]
+    },
+    {
+      "id": "GREETING",
+      "label": "Greeting",
+      "group": "Escort",
+      "color": "#2e9e5b",
+      "voice": "happy",
+      "sentences": [
+        "Hi there, I'm Misty. I'll take you to something.",
+        "Hello! I'm Misty. There's something I want to show you.",
+        "Hey, I'm Misty. Follow me and I'll bring you to it."
+      ]
+    },
+    {
+      "id": "READY_Q",
+      "label": "Ready Q",
+      "group": "Escort",
+      "color": "#3b7dd8",
+      "voice": "neutral",
+      "sentences": [
+        "Are you ready?",
+        "Shall we go?",
+        "Ready when you are."
+      ]
+    },
+    {
+      "id": "NUDGE",
+      "label": "Nudge (now?)",
+      "group": "Escort",
+      "color": "#3b7dd8",
+      "voice": "neutral",
+      "sentences": [
+        "Okay... what about now?",
+        "Alright. Now?",
+        "Hmm. How about now?"
+      ]
+    },
+    {
+      "id": "LOOK_BACK",
+      "label": "Look Back",
+      "group": "Escort",
+      "color": "#2e9e5b",
+      "voice": "happy",
+      "sentences": [
+        "Still with me?",
+        "Are you following?",
+        "You there?"
+      ]
+    },
+    {
+      "id": "CONCENTRATE",
+      "label": "Concentrate",
+      "group": "Escort",
+      "color": "#3b7dd8",
+      "voice": "neutral",
+      "sentences": [
+        "One moment, let me concentrate.",
+        "Hold that thought, I need to focus.",
+        "Give me a second, I'm concentrating."
+      ]
+    },
+    {
+      "id": "CONFUSED",
+      "label": "Confused",
+      "group": "Breakdown",
+      "color": "#d8902b",
+      "voice": "confused",
+      "sentences": [
+        "Hold on... something isn't right.",
+        "Wait. This doesn't look right."
+      ]
+    },
+    {
+      "id": "FRUSTRATED",
+      "label": "Frustrated",
+      "group": "Breakdown",
+      "color": "#d33b3b",
+      "voice": "angry",
+      "sentences": [
+        "This isn't working. It should be here.",
+        "No, no. It was supposed to be this way."
+      ]
+    },
+    {
+      "id": "LOST",
+      "label": "Lost",
+      "group": "Breakdown",
+      "color": "#7a4fc9",
+      "voice": "sad",
+      "sentences": [
+        "I think I'm lost.",
+        "I don't know where I am."
+      ]
+    },
+    {
+      "id": "ASK_HELP",
+      "label": "Ask Help",
+      "group": "Breakdown",
+      "color": "#7a4fc9",
+      "voice": "sad",
+      "sentences": [
+        "Can you help me?",
+        "Will you help me?"
+      ]
+    },
+    {
+      "id": "THANKS",
+      "label": "Thanks",
+      "group": "Responses",
+      "color": "#2e9e5b",
+      "voice": "happy",
+      "sentences": [
+        "Thank you.",
+        "Oh, thank you.",
+        "That helps, thank you."
+      ]
+    },
+    {
+      "id": "DISAGREE",
+      "label": "Disagree",
+      "group": "Responses",
+      "color": "#3b7dd8",
+      "voice": "neutral",
+      "sentences": [
+        "Hmm, I don't think that's it.",
+        "I don't think so, not that way."
+      ]
+    },
+    {
+      "id": "RECOVER",
+      "label": "Recover",
+      "group": "Responses",
+      "color": "#2e9e5b",
+      "voice": "happy",
+      "sentences": [
+        "Oh! I think I remember now. Thank you for staying.",
+        "Wait, yes. I've got it. Thanks for not leaving."
+      ]
+    },
+    {
+      "id": "ARRIVE",
+      "label": "Arrive",
+      "group": "Escort",
+      "color": "#2e9e5b",
+      "voice": "happy",
+      "sentences": [
+        "Here it is! That's what I wanted to show you. Goodbye!",
+        "There. We made it. Thanks for coming with me, goodbye!"
+      ]
+    },
+    {
+      "id": "CHECK_ROUTE",
+      "label": "Check Route",
+      "group": "Escort",
+      "color": "#3b7dd8",
+      "voice": "neutral",
+      "sentences": [
+        "Let me just check the route.",
+        "One second, let me check where we're going."
+      ]
+    },
+    {
+      "id": "SOUND_SAD",
+      "label": "Sad sound (random)",
+      "group": "Sounds",
+      "color": "#7a4fc9",
+      "volume": 80,
+      "sounds": [
+        "s_Sadness.wav",
+        "s_Sadness2.wav",
+        "s_Sadness3.wav",
+        "s_Grief.wav",
+        "s_Grief2.wav"
+      ]
+    },
+    {
+      "id": "SOUND_CONFUSED",
+      "label": "Confused sound (random)",
+      "group": "Sounds",
+      "color": "#d8902b",
+      "volume": 80,
+      "sounds": [
+        "s_DisorientedConfused.wav",
+        "s_DisorientedConfused2.wav",
+        "s_DisorientedConfused3.wav",
+        "s_PhraseUhOh.wav"
+      ]
+    },
+    {
+      "id": "SOUND_FRUSTRATED",
+      "label": "Frustrated sound (random)",
+      "group": "Sounds",
+      "color": "#d33b3b",
+      "volume": 80,
+      "sounds": [
+        "s_Annoyance.wav",
+        "s_Annoyance2.wav",
+        "s_Anger.wav",
+        "s_PhraseNoNoNo.wav"
+      ]
+    },
+    {
+      "id": "SOUND_HAPPY",
+      "label": "Happy sound (random)",
+      "group": "Sounds",
+      "color": "#2e9e5b",
+      "volume": 80,
+      "sounds": [
+        "s_Joy.wav",
+        "s_Joy2.wav",
+        "s_Joy3.wav",
+        "s_Ecstacy.wav",
+        "s_Love.wav"
+      ]
+    },
+    {
+      "id": "SOUND_OTHER",
+      "label": "Other sound (random)",
+      "group": "Sounds",
+      "color": "#6b6b7b",
+      "volume": 80,
+      "sounds": [
+        "s_Acceptance.wav",
+        "s_Awe.wav",
+        "s_Amazement.wav",
+        "s_PhraseHello.wav",
+        "s_PhraseByeBye.wav",
+        "s_PhraseOopsy.wav"
+      ]
+    },
+    {
+      "id": "SND_SADNESS",
+      "label": "Sad: Sadness",
+      "group": "Sounds",
+      "color": "#7a4fc9",
+      "volume": 80,
+      "sounds": [
+        "s_Sadness.wav"
+      ]
+    },
+    {
+      "id": "SND_SADNESS2",
+      "label": "Sad: Sadness2",
+      "group": "Sounds",
+      "color": "#7a4fc9",
+      "volume": 80,
+      "sounds": [
+        "s_Sadness2.wav"
+      ]
+    },
+    {
+      "id": "SND_SADNESS3",
+      "label": "Sad: Sadness3",
+      "group": "Sounds",
+      "color": "#7a4fc9",
+      "volume": 80,
+      "sounds": [
+        "s_Sadness3.wav"
+      ]
+    },
+    {
+      "id": "SND_GRIEF",
+      "label": "Sad: Grief",
+      "group": "Sounds",
+      "color": "#7a4fc9",
+      "volume": 80,
+      "sounds": [
+        "s_Grief.wav"
+      ]
+    },
+    {
+      "id": "SND_GRIEF2",
+      "label": "Sad: Grief2",
+      "group": "Sounds",
+      "color": "#7a4fc9",
+      "volume": 80,
+      "sounds": [
+        "s_Grief2.wav"
+      ]
+    },
+    {
+      "id": "SND_DISORIENTEDCONFUSED",
+      "label": "Confused: DisorientedConfused",
+      "group": "Sounds",
+      "color": "#d8902b",
+      "volume": 80,
+      "sounds": [
+        "s_DisorientedConfused.wav"
+      ]
+    },
+    {
+      "id": "SND_DISORIENTEDCONFUSED2",
+      "label": "Confused: DisorientedConfused2",
+      "group": "Sounds",
+      "color": "#d8902b",
+      "volume": 80,
+      "sounds": [
+        "s_DisorientedConfused2.wav"
+      ]
+    },
+    {
+      "id": "SND_DISORIENTEDCONFUSED3",
+      "label": "Confused: DisorientedConfused3",
+      "group": "Sounds",
+      "color": "#d8902b",
+      "volume": 80,
+      "sounds": [
+        "s_DisorientedConfused3.wav"
+      ]
+    },
+    {
+      "id": "SND_PHRASEUHOH",
+      "label": "Confused: PhraseUhOh",
+      "group": "Sounds",
+      "color": "#d8902b",
+      "volume": 80,
+      "sounds": [
+        "s_PhraseUhOh.wav"
+      ]
+    },
+    {
+      "id": "SND_ANNOYANCE",
+      "label": "Frustrated: Annoyance",
+      "group": "Sounds",
+      "color": "#d33b3b",
+      "volume": 80,
+      "sounds": [
+        "s_Annoyance.wav"
+      ]
+    },
+    {
+      "id": "SND_ANNOYANCE2",
+      "label": "Frustrated: Annoyance2",
+      "group": "Sounds",
+      "color": "#d33b3b",
+      "volume": 80,
+      "sounds": [
+        "s_Annoyance2.wav"
+      ]
+    },
+    {
+      "id": "SND_ANGER",
+      "label": "Frustrated: Anger",
+      "group": "Sounds",
+      "color": "#d33b3b",
+      "volume": 80,
+      "sounds": [
+        "s_Anger.wav"
+      ]
+    },
+    {
+      "id": "SND_PHRASENONONO",
+      "label": "Frustrated: PhraseNoNoNo",
+      "group": "Sounds",
+      "color": "#d33b3b",
+      "volume": 80,
+      "sounds": [
+        "s_PhraseNoNoNo.wav"
+      ]
+    },
+    {
+      "id": "SND_JOY",
+      "label": "Happy: Joy",
+      "group": "Sounds",
+      "color": "#2e9e5b",
+      "volume": 80,
+      "sounds": [
+        "s_Joy.wav"
+      ]
+    },
+    {
+      "id": "SND_JOY2",
+      "label": "Happy: Joy2",
+      "group": "Sounds",
+      "color": "#2e9e5b",
+      "volume": 80,
+      "sounds": [
+        "s_Joy2.wav"
+      ]
+    },
+    {
+      "id": "SND_JOY3",
+      "label": "Happy: Joy3",
+      "group": "Sounds",
+      "color": "#2e9e5b",
+      "volume": 80,
+      "sounds": [
+        "s_Joy3.wav"
+      ]
+    },
+    {
+      "id": "SND_ECSTACY",
+      "label": "Happy: Ecstacy",
+      "group": "Sounds",
+      "color": "#2e9e5b",
+      "volume": 80,
+      "sounds": [
+        "s_Ecstacy.wav"
+      ]
+    },
+    {
+      "id": "SND_LOVE",
+      "label": "Happy: Love",
+      "group": "Sounds",
+      "color": "#2e9e5b",
+      "volume": 80,
+      "sounds": [
+        "s_Love.wav"
+      ]
+    },
+    {
+      "id": "SND_ACCEPTANCE",
+      "label": "Other: Acceptance",
+      "group": "Sounds",
+      "color": "#6b6b7b",
+      "volume": 80,
+      "sounds": [
+        "s_Acceptance.wav"
+      ]
+    },
+    {
+      "id": "SND_AWE",
+      "label": "Other: Awe",
+      "group": "Sounds",
+      "color": "#6b6b7b",
+      "volume": 80,
+      "sounds": [
+        "s_Awe.wav"
+      ]
+    },
+    {
+      "id": "SND_AMAZEMENT",
+      "label": "Other: Amazement",
+      "group": "Sounds",
+      "color": "#6b6b7b",
+      "volume": 80,
+      "sounds": [
+        "s_Amazement.wav"
+      ]
+    },
+    {
+      "id": "SND_PHRASEHELLO",
+      "label": "Other: PhraseHello",
+      "group": "Sounds",
+      "color": "#6b6b7b",
+      "volume": 80,
+      "sounds": [
+        "s_PhraseHello.wav"
+      ]
+    },
+    {
+      "id": "SND_PHRASEBYEBYE",
+      "label": "Other: PhraseByeBye",
+      "group": "Sounds",
+      "color": "#6b6b7b",
+      "volume": 80,
+      "sounds": [
+        "s_PhraseByeBye.wav"
+      ]
+    },
+    {
+      "id": "SND_PHRASEOOPSY",
+      "label": "Other: PhraseOopsy",
+      "group": "Sounds",
+      "color": "#6b6b7b",
+      "volume": 80,
+      "sounds": [
+        "s_PhraseOopsy.wav"
+      ]
+    }
+  ]
+}

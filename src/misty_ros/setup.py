@@ -12,7 +12,7 @@ setup(
         ('share/ament_index/resource_index/packages', ['resource/' + package_name]),
         ('share/' + package_name, ['package.xml']),
         ('share/' + package_name + '/launch', glob('launch/*.launch.py')),
-        ('share/' + package_name + '/config', glob('config/*.yaml')),
+        ('share/' + package_name + '/config', glob('config/*.yaml') + glob('config/*.json')),
     ],
     install_requires=['setuptools'],
     zip_safe=True,
@@ -23,6 +23,8 @@ setup(
             'camera_node = misty_ros.camera_node:main',
             'teleop_node = misty_ros.teleop_node:main',
             'wizard_node = misty_ros.wizard_node:main',
+            'keyboard_teleop = misty_ros.keyboard_teleop:main',
+            'gamepad_teleop = misty_ros.gamepad_teleop:main',
         ],
     },
 )

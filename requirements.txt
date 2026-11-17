@@ -8,3 +8,4 @@ six==1.17.0
 urllib3==2.8.0
 websocket-client==0.57.0
 yapf==0.43.0
+pygame-ce==2.5.8

@@ -26,18 +26,19 @@ def generate_launch_description():
         DeclareLaunchArgument('participant_id', default_value=''),
         DeclareLaunchArgument('condition', default_value='', description='CONTROL or BREAKDOWN'),
         DeclareLaunchArgument('study_config', default_value=os.path.join(share, 'config', 'study.yaml')),
-        DeclareLaunchArgument('speech_bank', default_value=os.path.join(share, 'config', 'speech_bank.yaml')),
+        DeclareLaunchArgument('reactions', default_value=os.path.join(share, 'config', 'reactions.json')),
+        DeclareLaunchArgument('params_file', default_value=os.path.join(share, 'config', 'misty_params.yaml')),
         DeclareLaunchArgument('session_dir', default_value=os.path.expanduser('~/misty_ws/sessions')),
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource(os.path.join(share, 'launch', 'misty_foxglove.launch.py')),
-            launch_arguments={'misty_ip': ip}.items()),
+            launch_arguments={'misty_ip': ip, 'params_file': LaunchConfiguration('params_file')}.items()),
         Node(package='misty_ros', executable='wizard_node', name='misty_wizard', output='screen',
-             parameters=[{
+             parameters=[LaunchConfiguration('params_file'), {
                  'misty_ip': ip,
                  'participant_id': LaunchConfiguration('participant_id'),
                  'condition': LaunchConfiguration('condition'),
                  'study_config': LaunchConfiguration('study_config'),
-                 'speech_bank': LaunchConfiguration('speech_bank'),
+                 'reactions': LaunchConfiguration('reactions'),
                  'session_dir': LaunchConfiguration('session_dir'),
              }]),
     ])

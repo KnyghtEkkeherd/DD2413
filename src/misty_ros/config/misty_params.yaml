@@ -1,0 +1,40 @@
+# Misty settings: teleop / controller gains, camera.
+# (What Misty says and how - pitch, rate, voice - is in reactions.json.)
+#
+# Loaded by the launch files for every node. Edit and restart the launch to apply.
+# Use a different file with:  ros2 launch ... params_file:=/path/to/file.yaml
+
+misty_teleop:
+  ros__parameters:
+    # Twist from Foxglove / keyboard / controller -> Misty, in % of max speed
+    linear_scale: 30.0      # forward speed at full stick / key
+    angular_scale: 70.0     # turn speed at full stick / key
+    drive_time_ms: 600      # each drive command lasts this long (safety stop)
+    head_step_deg: 13.0     # head move per head message (Foxglove/keyboard: 10 msg/s)
+    head_velocity: 100.0    # head motor speed, % of max
+
+misty_gamepad_teleop:
+  ros__parameters:
+    rate: 15.0              # commands per second while a stick is pushed
+    deadzone: 0.15          # ignore stick movement smaller than this (0 - 1)
+    head_gain: 0.75         # head speed: x head_step_deg per message at full stick
+    drive_turn_scale: 1.0   # extra turn gain for the controller only
+    speed_levels: [0.5, 0.75, 1.0, 1.5, 2.0, 3.0]   # LB / RB steps through these
+    start_speed_level: 2    # index into speed_levels (2 -> 1.0)
+    invert_drive_turn: false
+    invert_head_tilt: false # true: push stick up to look down
+    invert_head_pan: false
+    timeout_s: 0.5          # stop if the controller stops sending
+
+misty_keyboard_teleop:
+  ros__parameters:
+    rate: 10.0              # commands per second while a key is held
+    hold_s: 0.5             # keep driving this long after the last key repeat
+    speed_levels: [0.5, 0.75, 1.0, 1.5, 2.0, 3.0]   # Z / X steps through these
+    start_speed_level: 2
+
+misty_camera:
+  ros__parameters:
+    fps: 2.0
+    width: 640
+    height: 480

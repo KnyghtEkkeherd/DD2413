@@ -5,16 +5,19 @@ publish std_msgs/String on /wizard/event:
 
   Session   START / END              open / close the CSV log (participant_id
                                      and condition parameters are read at START)
-  Speech    SAY:<CATEGORY>           random variant from the speech bank (index logged)
-            SAY_TEXT:<text>          any text typed by the wizard
-            STOP_TALKING             cut off speech, sounds and a running FAILURE
-  Sounds    PLAY:<file.wav>          one of Misty's audio files (config/sounds.yaml)
-  Failure   FAILURE                  predefined sequence from study.yaml
-                                     (default: "I'm lost" -> sad sound -> "can you help me?")
+  Reactions REACT:<id>               a reaction from config/reactions.json: a random
+                                     sentence (with its voice settings), a random
+                                     sound, or a sequence of steps (e.g. FAILURE)
+            REACT:<id>:<n>           sentence number n (0-based) of that reaction
+            SAY_TEXT:[voice] <text>  any text; optional [preset] and/or [pitch=1.4 rate=0.8 ...]
+            PLAY:<file.wav>          any Misty audio file
+            STOP_TALKING             cut off speech, sounds and a running sequence
+            (SAY:<id> and FAILURE are kept as aliases of REACT:<id> / REACT:FAILURE)
+  reactions.json is re-read whenever it changes: no restart needed.
   Motion    NEXT_SEGMENT / ROUTE_RESET   route segments from study.yaml
             LOOK_BACK / HEAD_CENTER      head turns back (+ a line) / straight
             NUDGE_L / NUDGE_R / NUDGE_FWD
-            STOP                     stop driving, speech, sounds and FAILURE
+            STOP                     stop driving, speech, sounds and sequences
             TOUCH_SIM                log a head touch by hand
   Free driving and head aiming: Foxglove Teleop panels (teleop_node).
   Emotions (mood, face, LEDs, gestures): the Misty phone app.
@@ -65,8 +68,7 @@ class MistyWizard(Node):
         self.declare_parameter('participant_id', '')
         self.declare_parameter('condition', '')          # CONTROL or BREAKDOWN
         self.declare_parameter('study_config', str(share / 'study.yaml'))
-        self.declare_parameter('speech_bank', str(share / 'speech_bank.yaml'))
-        self.declare_parameter('sounds', str(share / 'sounds.yaml'))
+        self.declare_parameter('reactions', str(share / 'reactions.json'))
         self.declare_parameter('session_dir', str(Path.home() / 'misty_ws' / 'sessions'))
         self.declare_parameter('request_timeout', 2.0)
 
@@ -86,7 +88,7 @@ class MistyWizard(Node):
         self.log_lock = threading.Lock()
         self.last_variant = {}
         self.seg_i = 0
-        self.sequence = None                  # running FAILURE thread
+        self.sequence = None                  # running sequence (e.g. FAILURE) thread
         self.cancel = threading.Event()       # cancels the running sequence
 
         latched = QoSProfile(depth=1, durability=DurabilityPolicy.TRANSIENT_LOCAL)
@@ -108,16 +110,31 @@ class MistyWizard(Node):
 
     # ------------------------------------------------------------------ config
     def load_config(self):
-        def load(param):
-            with open(self.get_parameter(param).value) as f:
-                return yaml.safe_load(f) or {}
-        self.cfg = load('study_config')
-        self.speech = load('speech_bank')
+        with open(self.get_parameter('study_config').value) as f:
+            self.cfg = yaml.safe_load(f) or {}
+        self.reactions_mtime = None
+        self.load_reactions()
+
+    def load_reactions(self):
+        """(Re)load reactions.json if it changed. A broken file keeps the last good one."""
+        path = Path(self.get_parameter('reactions').value)
         try:
-            self.sounds = load('sounds')
-        except OSError as e:
-            self.sounds = {}
-            self.get_logger().warning(f'No sounds config: {e}')
+            mtime = path.stat().st_mtime
+            if mtime == getattr(self, 'reactions_mtime', None):
+                return
+            data = json.loads(path.read_text())
+            reactions = {r['id']: r for r in data.get('reactions', [])}
+            voices = {k: v for k, v in (data.get('voices') or {}).items() if isinstance(v, dict)}
+        except (OSError, ValueError, KeyError, TypeError) as e:
+            msg = f'reactions.json not loaded: {e}'
+            self.get_logger().error(msg)
+            if hasattr(self, 'pub'):
+                self.note(msg)
+            if not hasattr(self, 'reactions'):
+                self.reactions, self.voices = {}, {}
+            return
+        self.reactions, self.voices, self.reactions_mtime = reactions, voices, mtime
+        self.get_logger().info(f'Loaded {len(reactions)} reactions, {len(voices)} voices from {path}')
 
     # ------------------------------------------------------------------ inputs
     def on_wizard_msg(self, msg: String):
@@ -239,22 +256,39 @@ class MistyWizard(Node):
             self.note(f'{what} failed: {e}')
         return False
 
-    def say(self, category, source='wizard', wait=False):
-        variants = self.speech.get(category)
-        if not variants:
-            self.note(f'No speech category "{category}" in speech_bank.yaml')
-            return
-        choices = [i for i in range(len(variants)) if i != self.last_variant.get(category)] or [0]
-        idx = random.choice(choices)
-        self.last_variant[category] = idx
-        text = variants[idx]
+    def voice_params(self, *specs):
+        """Merge voice settings: later specs override earlier ones.
+
+        A spec is a preset name from reactions.json "voices" or a dict with
+        pitch / rate / voice / language (and optionally "voice": <preset>).
+        """
+        out = dict(self.voices.get('neutral', {}))
+        for spec in specs:
+            if not spec:
+                continue
+            if isinstance(spec, str):
+                if spec not in self.voices:
+                    self.note(f'Unknown voice preset "{spec}"')
+                out.update(self.voices.get(spec, {}))
+            elif isinstance(spec, dict):
+                if isinstance(spec.get('voice'), str) and spec['voice'] in self.voices:
+                    out.update(self.voices[spec['voice']])
+                    spec = {k: v for k, v in spec.items() if k != 'voice'}
+                out.update({k: v for k, v in spec.items() if k in ('pitch', 'rate', 'voice', 'language')})
+        return out
+
+    def speak(self, text, params, source, event, variant='', wait=False):
         uid = f'wiz_{uuid.uuid4().hex[:12]}'
-        self.log(source, f'SAY_{category}', variant=idx, detail=text)
-        self.publish('said', f'{category}[{idx}]: {text}')
-        self.call('speak', self.misty.speak, text=text, flush=True, utteranceId=uid)
+        style = ', '.join(f'{k}={v}' for k, v in params.items() if v not in ('', None))
+        self.log(source, event, variant=variant, detail=f'{text}  [{style}]' if style else text)
+        self.publish('said', f'{event}{f"[{variant}]" if variant != "" else ""}: {text}')
+        self.call('speak', self.misty.speak, text=text, flush=True, utteranceId=uid,
+                  pitch=params.get('pitch'), speechRate=params.get('rate'),
+                  voice=params.get('voice') or None, language=params.get('language') or None)
         if wait:
             sp = self.cfg['speech']
-            estimate = len(text.split()) * sp['fallback_s_per_word'] + sp['fallback_extra_s']
+            rate = float(params.get('rate') or 1.0) or 1.0
+            estimate = len(text.split()) * sp['fallback_s_per_word'] / rate + sp['fallback_extra_s']
             if self.ws_ok:
                 def done():
                     with self.tts_lock:
@@ -263,9 +297,58 @@ class MistyWizard(Node):
             else:
                 self.sleep(estimate)
 
-    def play(self, filename, source='wizard'):
-        volume = int(self.sounds.get('volume', 80))
-        self.log(source, 'PLAY_SOUND', detail=filename)
+    def pick(self, rid, items, index=None):
+        """Choose an item: the given index, else random without repeating the last."""
+        if index is not None:
+            if not 0 <= index < len(items):
+                self.note(f'{rid} has no item {index}')
+                return None, None
+            return index, items[index]
+        choices = [i for i in range(len(items)) if i != self.last_variant.get(rid)] or [0]
+        i = random.choice(choices)
+        self.last_variant[rid] = i
+        return i, items[i]
+
+    def say_reaction(self, rid, index=None, source='wizard', wait=False):
+        r = self.reactions.get(rid)
+        if not r or not r.get('sentences'):
+            self.note(f'No sentences for reaction "{rid}" in reactions.json')
+            return
+        i, s = self.pick(rid, r['sentences'], index)
+        if s is None:
+            return
+        text = s['text'] if isinstance(s, dict) else str(s)
+        params = self.voice_params(r.get('voice'), {k: v for k, v in r.items() if k in ('pitch', 'rate', 'language')},
+                                   s if isinstance(s, dict) else None)
+        self.speak(text, params, source, f'SAY_{rid}', variant=i, wait=wait)
+
+    def sound_reaction(self, rid, index=None, source='wizard'):
+        r = self.reactions.get(rid)
+        if not r or not r.get('sounds'):
+            self.note(f'No sounds for reaction "{rid}" in reactions.json')
+            return
+        i, f = self.pick(rid, r['sounds'], index)
+        if f is not None:
+            self.play(f, source=source, volume=r.get('volume'), variant=i)
+
+    def react(self, rid, index=None):
+        self.load_reactions()
+        r = self.reactions.get(rid)
+        if r is None:
+            self.note(f'Unknown reaction "{rid}" (not in reactions.json)')
+            return
+        if r.get('steps'):
+            self.start_sequence(rid)
+        elif r.get('sentences'):
+            self.say_reaction(rid, index)
+        elif r.get('sounds'):
+            self.sound_reaction(rid, index)
+        else:
+            self.note(f'Reaction "{rid}" has no sentences, sounds or steps')
+
+    def play(self, filename, source='wizard', volume=None, variant=''):
+        volume = int(volume if volume is not None else 80)
+        self.log(source, 'PLAY_SOUND', variant=variant, detail=filename)
         self.publish('said', f'sound: {filename}')
         if self.call(f'Sound {filename}', self.misty.play_audio, fileName=filename, volume=volume):
             self.note(f'Playing {filename}')
@@ -298,40 +381,38 @@ class MistyWizard(Node):
         self.call('stop_speaking', self.misty.stop_speaking)
         self.call('stop_audio', self.misty.stop_audio)
 
-    # ---------------------------------------------------------------- failure
-    def start_failure(self):
+    # -------------------------------------------------------------- sequences
+    def start_sequence(self, rid):
         if self.sequence is not None and self.sequence.is_alive():
-            self.note('FAILURE already running (STOP to cancel)')
+            self.note('A sequence is already running (Stop talking / STOP to cancel)')
             return
         self.cancel.clear()
-        self.log('wizard', 'FAILURE')
-        self.sequence = threading.Thread(target=self.run_failure, daemon=True)
+        self.log('wizard', f'SEQUENCE_{rid}')
+        self.sequence = threading.Thread(target=self.run_sequence, args=(rid,), daemon=True)
         self.sequence.start()
 
-    def run_failure(self):
-        self.note('FAILURE sequence running')
+    def run_sequence(self, rid):
+        src = rid.lower()
+        self.note(f'{rid} running')
         try:
-            for step in self.cfg.get('failure_sequence') or []:
+            for step in self.reactions[rid]['steps']:
                 if 'say' in step:
-                    self.say(step['say'], source='failure', wait=True)
-                elif 'play' in step or 'sound_group' in step:
-                    if 'play' in step:
-                        name = step['play']
+                    self.say_reaction(step['say'], step.get('index'), source=src, wait=True)
+                elif 'text' in step:
+                    self.speak(step['text'], self.voice_params(step.get('voice'), step), src, 'SAY_TEXT', wait=True)
+                elif 'sound' in step or 'sound_from' in step:
+                    if 'sound' in step:
+                        self.play(step['sound'], source=src, volume=step.get('volume'))
                     else:
-                        files = (self.sounds.get('groups') or {}).get(step['sound_group']) or []
-                        if not files:
-                            self.note(f'No sounds in group {step["sound_group"]}')
-                            continue
-                        name = random.choice(files)
-                    self.play(name, source='failure')
+                        self.sound_reaction(step['sound_from'], step.get('index'), source=src)
                     self.sleep(float(step.get('wait', 2.0)))
                 elif 'pause' in step:
                     self.sleep(float(step['pause']))
-            self.log('failure', 'FAILURE_DONE')
-            self.note('FAILURE sequence done')
+            self.log(src, f'SEQUENCE_{rid}_DONE')
+            self.note(f'{rid} done')
         except Cancelled:
-            self.log('failure', 'FAILURE_CANCELLED')
-            self.note('FAILURE sequence cancelled')
+            self.log(src, f'SEQUENCE_{rid}_CANCELLED')
+            self.note(f'{rid} cancelled')
 
     # ---------------------------------------------------------------- session
     def start_session(self):
@@ -347,7 +428,7 @@ class MistyWizard(Node):
         try:
             self.load_config()             # pick up edits to the YAML files
         except Exception as e:
-            self.note(f'Cannot START: config error: {e}')
+            self.note(f'Cannot START: study.yaml error: {e}')
             return
         self.seg_i = 0
         self.publish_route()
@@ -387,18 +468,33 @@ class MistyWizard(Node):
             self.start_session()
         elif name == 'END':
             self.end_session()
-        elif name == 'SAY':
-            self.say(arg.upper())
+        elif name in ('REACT', 'SAY'):
+            rid, _, idx = arg.partition(':')
+            self.react(rid.strip(), int(idx) if idx.strip().isdigit() else None)
+        elif name == 'FAILURE':
+            self.react('FAILURE')
         elif name == 'SAY_TEXT':
-            if arg:
-                self.log('wizard', 'SAY_CUSTOM', detail=arg)
-                self.publish('said', f'custom: {arg}')
-                self.call('speak', self.misty.speak, text=arg, flush=True)
+            # "[sad] text", "[pitch=1.4 rate=0.8] text" or "[sad rate=0.6] text"
+            text, preset, extra = arg, None, {}
+            if text.startswith('[') and ']' in text:
+                spec, text = text[1:text.index(']')], text[text.index(']') + 1:].strip()
+                for tok in spec.replace(',', ' ').split():
+                    key, eq, val = tok.partition('=')
+                    if not eq:
+                        preset = key
+                    elif key in ('pitch', 'rate'):
+                        try:
+                            extra[key] = float(val)
+                        except ValueError:
+                            self.note(f'Bad number in "{tok}"')
+                    elif key in ('voice', 'language'):
+                        extra[key] = val
+            if text:
+                self.load_reactions()
+                self.speak(text, self.voice_params(preset, extra), 'wizard', 'SAY_CUSTOM')
         elif name == 'PLAY':
             if arg:
                 self.play(arg)
-        elif name == 'FAILURE':
-            self.start_failure()
         elif name == 'STOP_TALKING':
             self.stop_everything('STOP_TALKING')
             self.note('Stopped talking + sounds')
@@ -416,7 +512,9 @@ class MistyWizard(Node):
         elif name == 'LOOK_BACK':
             self.log('wizard', name)
             self.head(self.cfg['look_back']['head_yaw_deg'])
-            self.say('LOOK_BACK')
+            self.load_reactions()
+            if self.cfg['look_back'].get('say', 'LOOK_BACK'):
+                self.say_reaction(self.cfg['look_back'].get('say', 'LOOK_BACK'))
             t = threading.Timer(float(self.cfg['look_back'].get('return_after_s', 4)), self.head, args=(0,))
             t.daemon = True
             t.start()

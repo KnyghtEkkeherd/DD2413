@@ -3,452 +3,485 @@
     "Publish!publish0": {
       "topicName": "/wizard/event",
       "datatype": "std_msgs/msg/String",
-      "buttonText": "Greeting",
-      "buttonTooltip": "Send SAY:GREETING",
-      "buttonColor": "#3b7dd8",
+      "buttonText": "⚠ FAILURE: lost + sad sound + ask for help",
+      "buttonTooltip": "Send REACT:FAILURE",
+      "buttonColor": "#d33b3b",
       "advancedView": false,
-      "value": "{\"data\": \"SAY:GREETING\"}"
+      "value": "{\"data\": \"REACT:FAILURE\"}"
     },
     "Publish!publish1": {
       "topicName": "/wizard/event",
       "datatype": "std_msgs/msg/String",
-      "buttonText": "Ready Q",
-      "buttonTooltip": "Send SAY:READY_Q",
-      "buttonColor": "#3b7dd8",
+      "buttonText": "Stop talking / cancel",
+      "buttonTooltip": "Send STOP_TALKING",
+      "buttonColor": "#8a1c1c",
       "advancedView": false,
-      "value": "{\"data\": \"SAY:READY_Q\"}"
+      "value": "{\"data\": \"STOP_TALKING\"}"
     },
     "Publish!publish2": {
       "topicName": "/wizard/event",
       "datatype": "std_msgs/msg/String",
-      "buttonText": "Nudge",
-      "buttonTooltip": "Send SAY:NUDGE",
-      "buttonColor": "#3b7dd8",
+      "buttonText": "Greeting",
+      "buttonTooltip": "Send REACT:GREETING",
+      "buttonColor": "#2e9e5b",
       "advancedView": false,
-      "value": "{\"data\": \"SAY:NUDGE\"}"
+      "value": "{\"data\": \"REACT:GREETING\"}"
     },
     "Publish!publish3": {
       "topicName": "/wizard/event",
       "datatype": "std_msgs/msg/String",
-      "buttonText": "Look Back",
-      "buttonTooltip": "Send SAY:LOOK_BACK",
+      "buttonText": "Ready Q",
+      "buttonTooltip": "Send REACT:READY_Q",
       "buttonColor": "#3b7dd8",
       "advancedView": false,
-      "value": "{\"data\": \"SAY:LOOK_BACK\"}"
+      "value": "{\"data\": \"REACT:READY_Q\"}"
     },
     "Publish!publish4": {
       "topicName": "/wizard/event",
       "datatype": "std_msgs/msg/String",
-      "buttonText": "Concentrate",
-      "buttonTooltip": "Send SAY:CONCENTRATE",
+      "buttonText": "Nudge (now?)",
+      "buttonTooltip": "Send REACT:NUDGE",
       "buttonColor": "#3b7dd8",
       "advancedView": false,
-      "value": "{\"data\": \"SAY:CONCENTRATE\"}"
+      "value": "{\"data\": \"REACT:NUDGE\"}"
     },
     "Publish!publish5": {
       "topicName": "/wizard/event",
       "datatype": "std_msgs/msg/String",
-      "buttonText": "Confused",
-      "buttonTooltip": "Send SAY:CONFUSED",
-      "buttonColor": "#d8902b",
+      "buttonText": "Look Back",
+      "buttonTooltip": "Send REACT:LOOK_BACK",
+      "buttonColor": "#2e9e5b",
       "advancedView": false,
-      "value": "{\"data\": \"SAY:CONFUSED\"}"
+      "value": "{\"data\": \"REACT:LOOK_BACK\"}"
     },
     "Publish!publish6": {
       "topicName": "/wizard/event",
       "datatype": "std_msgs/msg/String",
-      "buttonText": "Frustrated",
-      "buttonTooltip": "Send SAY:FRUSTRATED",
-      "buttonColor": "#d33b3b",
+      "buttonText": "Concentrate",
+      "buttonTooltip": "Send REACT:CONCENTRATE",
+      "buttonColor": "#3b7dd8",
       "advancedView": false,
-      "value": "{\"data\": \"SAY:FRUSTRATED\"}"
+      "value": "{\"data\": \"REACT:CONCENTRATE\"}"
     },
     "Publish!publish7": {
       "topicName": "/wizard/event",
       "datatype": "std_msgs/msg/String",
-      "buttonText": "Lost",
-      "buttonTooltip": "Send SAY:LOST",
-      "buttonColor": "#7a4fc9",
+      "buttonText": "Arrive",
+      "buttonTooltip": "Send REACT:ARRIVE",
+      "buttonColor": "#2e9e5b",
       "advancedView": false,
-      "value": "{\"data\": \"SAY:LOST\"}"
+      "value": "{\"data\": \"REACT:ARRIVE\"}"
     },
     "Publish!publish8": {
       "topicName": "/wizard/event",
       "datatype": "std_msgs/msg/String",
-      "buttonText": "Ask Help",
-      "buttonTooltip": "Send SAY:ASK_HELP",
-      "buttonColor": "#7a4fc9",
+      "buttonText": "Check Route",
+      "buttonTooltip": "Send REACT:CHECK_ROUTE",
+      "buttonColor": "#3b7dd8",
       "advancedView": false,
-      "value": "{\"data\": \"SAY:ASK_HELP\"}"
+      "value": "{\"data\": \"REACT:CHECK_ROUTE\"}"
     },
     "Publish!publish9": {
       "topicName": "/wizard/event",
       "datatype": "std_msgs/msg/String",
-      "buttonText": "Thanks",
-      "buttonTooltip": "Send SAY:THANKS",
-      "buttonColor": "#2e9e5b",
+      "buttonText": "Confused",
+      "buttonTooltip": "Send REACT:CONFUSED",
+      "buttonColor": "#d8902b",
       "advancedView": false,
-      "value": "{\"data\": \"SAY:THANKS\"}"
+      "value": "{\"data\": \"REACT:CONFUSED\"}"
     },
     "Publish!publish10": {
       "topicName": "/wizard/event",
       "datatype": "std_msgs/msg/String",
-      "buttonText": "Disagree",
-      "buttonTooltip": "Send SAY:DISAGREE",
+      "buttonText": "Frustrated",
+      "buttonTooltip": "Send REACT:FRUSTRATED",
       "buttonColor": "#d33b3b",
       "advancedView": false,
-      "value": "{\"data\": \"SAY:DISAGREE\"}"
+      "value": "{\"data\": \"REACT:FRUSTRATED\"}"
     },
     "Publish!publish11": {
       "topicName": "/wizard/event",
       "datatype": "std_msgs/msg/String",
-      "buttonText": "Recover",
-      "buttonTooltip": "Send SAY:RECOVER",
-      "buttonColor": "#2e9e5b",
+      "buttonText": "Lost",
+      "buttonTooltip": "Send REACT:LOST",
+      "buttonColor": "#7a4fc9",
       "advancedView": false,
-      "value": "{\"data\": \"SAY:RECOVER\"}"
+      "value": "{\"data\": \"REACT:LOST\"}"
     },
     "Publish!publish12": {
       "topicName": "/wizard/event",
       "datatype": "std_msgs/msg/String",
-      "buttonText": "Arrive",
-      "buttonTooltip": "Send SAY:ARRIVE",
-      "buttonColor": "#2e9e5b",
+      "buttonText": "Ask Help",
+      "buttonTooltip": "Send REACT:ASK_HELP",
+      "buttonColor": "#7a4fc9",
       "advancedView": false,
-      "value": "{\"data\": \"SAY:ARRIVE\"}"
+      "value": "{\"data\": \"REACT:ASK_HELP\"}"
     },
     "Publish!publish13": {
       "topicName": "/wizard/event",
       "datatype": "std_msgs/msg/String",
-      "buttonText": "Check Route",
-      "buttonTooltip": "Send SAY:CHECK_ROUTE",
-      "buttonColor": "#3b7dd8",
+      "buttonText": "Thanks",
+      "buttonTooltip": "Send REACT:THANKS",
+      "buttonColor": "#2e9e5b",
       "advancedView": false,
-      "value": "{\"data\": \"SAY:CHECK_ROUTE\"}"
+      "value": "{\"data\": \"REACT:THANKS\"}"
     },
     "Publish!publish14": {
       "topicName": "/wizard/event",
       "datatype": "std_msgs/msg/String",
-      "buttonText": "Stop talking",
-      "buttonTooltip": "Send STOP_TALKING",
-      "buttonColor": "#8a1c1c",
+      "buttonText": "Disagree",
+      "buttonTooltip": "Send REACT:DISAGREE",
+      "buttonColor": "#3b7dd8",
       "advancedView": false,
-      "value": "{\"data\": \"STOP_TALKING\"}"
+      "value": "{\"data\": \"REACT:DISAGREE\"}"
     },
     "Publish!publish15": {
       "topicName": "/wizard/event",
       "datatype": "std_msgs/msg/String",
-      "buttonText": "Say custom text",
-      "buttonTooltip": "Send SAY_TEXT:Type what Misty should say here",
-      "buttonColor": "#1f8a8a",
-      "advancedView": true,
-      "value": "{\"data\": \"SAY_TEXT:Type what Misty should say here\"}"
+      "buttonText": "Recover",
+      "buttonTooltip": "Send REACT:RECOVER",
+      "buttonColor": "#2e9e5b",
+      "advancedView": false,
+      "value": "{\"data\": \"REACT:RECOVER\"}"
     },
     "Publish!publish16": {
       "topicName": "/wizard/event",
       "datatype": "std_msgs/msg/String",
-      "buttonText": "Sad: Sadness",
-      "buttonTooltip": "Send PLAY:s_Sadness.wav",
+      "buttonText": "Sad sound (random)",
+      "buttonTooltip": "Send REACT:SOUND_SAD",
       "buttonColor": "#7a4fc9",
       "advancedView": false,
-      "value": "{\"data\": \"PLAY:s_Sadness.wav\"}"
+      "value": "{\"data\": \"REACT:SOUND_SAD\"}"
     },
     "Publish!publish17": {
       "topicName": "/wizard/event",
       "datatype": "std_msgs/msg/String",
-      "buttonText": "Sad: Sadness2",
-      "buttonTooltip": "Send PLAY:s_Sadness2.wav",
-      "buttonColor": "#7a4fc9",
+      "buttonText": "Confused sound (random)",
+      "buttonTooltip": "Send REACT:SOUND_CONFUSED",
+      "buttonColor": "#d8902b",
       "advancedView": false,
-      "value": "{\"data\": \"PLAY:s_Sadness2.wav\"}"
+      "value": "{\"data\": \"REACT:SOUND_CONFUSED\"}"
     },
     "Publish!publish18": {
       "topicName": "/wizard/event",
       "datatype": "std_msgs/msg/String",
-      "buttonText": "Sad: Sadness3",
-      "buttonTooltip": "Send PLAY:s_Sadness3.wav",
-      "buttonColor": "#7a4fc9",
+      "buttonText": "Frustrated sound (random)",
+      "buttonTooltip": "Send REACT:SOUND_FRUSTRATED",
+      "buttonColor": "#d33b3b",
       "advancedView": false,
-      "value": "{\"data\": \"PLAY:s_Sadness3.wav\"}"
+      "value": "{\"data\": \"REACT:SOUND_FRUSTRATED\"}"
     },
     "Publish!publish19": {
       "topicName": "/wizard/event",
       "datatype": "std_msgs/msg/String",
-      "buttonText": "Sad: Grief",
-      "buttonTooltip": "Send PLAY:s_Grief.wav",
-      "buttonColor": "#7a4fc9",
+      "buttonText": "Happy sound (random)",
+      "buttonTooltip": "Send REACT:SOUND_HAPPY",
+      "buttonColor": "#2e9e5b",
       "advancedView": false,
-      "value": "{\"data\": \"PLAY:s_Grief.wav\"}"
+      "value": "{\"data\": \"REACT:SOUND_HAPPY\"}"
     },
     "Publish!publish20": {
       "topicName": "/wizard/event",
       "datatype": "std_msgs/msg/String",
-      "buttonText": "Sad: Grief2",
-      "buttonTooltip": "Send PLAY:s_Grief2.wav",
-      "buttonColor": "#7a4fc9",
+      "buttonText": "Other sound (random)",
+      "buttonTooltip": "Send REACT:SOUND_OTHER",
+      "buttonColor": "#6b6b7b",
       "advancedView": false,
-      "value": "{\"data\": \"PLAY:s_Grief2.wav\"}"
+      "value": "{\"data\": \"REACT:SOUND_OTHER\"}"
     },
     "Publish!publish21": {
       "topicName": "/wizard/event",
       "datatype": "std_msgs/msg/String",
-      "buttonText": "Confused: DisorientedConfused",
-      "buttonTooltip": "Send PLAY:s_DisorientedConfused.wav",
-      "buttonColor": "#d8902b",
+      "buttonText": "Sad: Sadness",
+      "buttonTooltip": "Send REACT:SND_SADNESS",
+      "buttonColor": "#7a4fc9",
       "advancedView": false,
-      "value": "{\"data\": \"PLAY:s_DisorientedConfused.wav\"}"
+      "value": "{\"data\": \"REACT:SND_SADNESS\"}"
     },
     "Publish!publish22": {
       "topicName": "/wizard/event",
       "datatype": "std_msgs/msg/String",
-      "buttonText": "Confused: DisorientedConfused2",
-      "buttonTooltip": "Send PLAY:s_DisorientedConfused2.wav",
-      "buttonColor": "#d8902b",
+      "buttonText": "Sad: Sadness2",
+      "buttonTooltip": "Send REACT:SND_SADNESS2",
+      "buttonColor": "#7a4fc9",
       "advancedView": false,
-      "value": "{\"data\": \"PLAY:s_DisorientedConfused2.wav\"}"
+      "value": "{\"data\": \"REACT:SND_SADNESS2\"}"
     },
     "Publish!publish23": {
       "topicName": "/wizard/event",
       "datatype": "std_msgs/msg/String",
-      "buttonText": "Confused: DisorientedConfused3",
-      "buttonTooltip": "Send PLAY:s_DisorientedConfused3.wav",
-      "buttonColor": "#d8902b",
+      "buttonText": "Sad: Sadness3",
+      "buttonTooltip": "Send REACT:SND_SADNESS3",
+      "buttonColor": "#7a4fc9",
       "advancedView": false,
-      "value": "{\"data\": \"PLAY:s_DisorientedConfused3.wav\"}"
+      "value": "{\"data\": \"REACT:SND_SADNESS3\"}"
     },
     "Publish!publish24": {
       "topicName": "/wizard/event",
       "datatype": "std_msgs/msg/String",
-      "buttonText": "Confused: PhraseUhOh",
-      "buttonTooltip": "Send PLAY:s_PhraseUhOh.wav",
-      "buttonColor": "#d8902b",
+      "buttonText": "Sad: Grief",
+      "buttonTooltip": "Send REACT:SND_GRIEF",
+      "buttonColor": "#7a4fc9",
       "advancedView": false,
-      "value": "{\"data\": \"PLAY:s_PhraseUhOh.wav\"}"
+      "value": "{\"data\": \"REACT:SND_GRIEF\"}"
     },
     "Publish!publish25": {
       "topicName": "/wizard/event",
       "datatype": "std_msgs/msg/String",
-      "buttonText": "Frustrated: Annoyance",
-      "buttonTooltip": "Send PLAY:s_Annoyance.wav",
-      "buttonColor": "#d33b3b",
+      "buttonText": "Sad: Grief2",
+      "buttonTooltip": "Send REACT:SND_GRIEF2",
+      "buttonColor": "#7a4fc9",
       "advancedView": false,
-      "value": "{\"data\": \"PLAY:s_Annoyance.wav\"}"
+      "value": "{\"data\": \"REACT:SND_GRIEF2\"}"
     },
     "Publish!publish26": {
       "topicName": "/wizard/event",
       "datatype": "std_msgs/msg/String",
-      "buttonText": "Frustrated: Annoyance2",
-      "buttonTooltip": "Send PLAY:s_Annoyance2.wav",
-      "buttonColor": "#d33b3b",
+      "buttonText": "Confused: DisorientedConfused",
+      "buttonTooltip": "Send REACT:SND_DISORIENTEDCONFUSED",
+      "buttonColor": "#d8902b",
       "advancedView": false,
-      "value": "{\"data\": \"PLAY:s_Annoyance2.wav\"}"
+      "value": "{\"data\": \"REACT:SND_DISORIENTEDCONFUSED\"}"
     },
     "Publish!publish27": {
       "topicName": "/wizard/event",
       "datatype": "std_msgs/msg/String",
-      "buttonText": "Frustrated: Anger",
-      "buttonTooltip": "Send PLAY:s_Anger.wav",
-      "buttonColor": "#d33b3b",
+      "buttonText": "Confused: DisorientedConfused2",
+      "buttonTooltip": "Send REACT:SND_DISORIENTEDCONFUSED2",
+      "buttonColor": "#d8902b",
       "advancedView": false,
-      "value": "{\"data\": \"PLAY:s_Anger.wav\"}"
+      "value": "{\"data\": \"REACT:SND_DISORIENTEDCONFUSED2\"}"
     },
     "Publish!publish28": {
       "topicName": "/wizard/event",
       "datatype": "std_msgs/msg/String",
-      "buttonText": "Frustrated: PhraseNoNoNo",
-      "buttonTooltip": "Send PLAY:s_PhraseNoNoNo.wav",
-      "buttonColor": "#d33b3b",
+      "buttonText": "Confused: DisorientedConfused3",
+      "buttonTooltip": "Send REACT:SND_DISORIENTEDCONFUSED3",
+      "buttonColor": "#d8902b",
       "advancedView": false,
-      "value": "{\"data\": \"PLAY:s_PhraseNoNoNo.wav\"}"
+      "value": "{\"data\": \"REACT:SND_DISORIENTEDCONFUSED3\"}"
     },
     "Publish!publish29": {
       "topicName": "/wizard/event",
       "datatype": "std_msgs/msg/String",
-      "buttonText": "Happy: Joy",
-      "buttonTooltip": "Send PLAY:s_Joy.wav",
-      "buttonColor": "#2e9e5b",
+      "buttonText": "Confused: PhraseUhOh",
+      "buttonTooltip": "Send REACT:SND_PHRASEUHOH",
+      "buttonColor": "#d8902b",
       "advancedView": false,
-      "value": "{\"data\": \"PLAY:s_Joy.wav\"}"
+      "value": "{\"data\": \"REACT:SND_PHRASEUHOH\"}"
     },
     "Publish!publish30": {
       "topicName": "/wizard/event",
       "datatype": "std_msgs/msg/String",
-      "buttonText": "Happy: Joy2",
-      "buttonTooltip": "Send PLAY:s_Joy2.wav",
-      "buttonColor": "#2e9e5b",
+      "buttonText": "Frustrated: Annoyance",
+      "buttonTooltip": "Send REACT:SND_ANNOYANCE",
+      "buttonColor": "#d33b3b",
       "advancedView": false,
-      "value": "{\"data\": \"PLAY:s_Joy2.wav\"}"
+      "value": "{\"data\": \"REACT:SND_ANNOYANCE\"}"
     },
     "Publish!publish31": {
       "topicName": "/wizard/event",
       "datatype": "std_msgs/msg/String",
-      "buttonText": "Happy: Joy3",
-      "buttonTooltip": "Send PLAY:s_Joy3.wav",
-      "buttonColor": "#2e9e5b",
+      "buttonText": "Frustrated: Annoyance2",
+      "buttonTooltip": "Send REACT:SND_ANNOYANCE2",
+      "buttonColor": "#d33b3b",
       "advancedView": false,
-      "value": "{\"data\": \"PLAY:s_Joy3.wav\"}"
+      "value": "{\"data\": \"REACT:SND_ANNOYANCE2\"}"
     },
     "Publish!publish32": {
       "topicName": "/wizard/event",
       "datatype": "std_msgs/msg/String",
-      "buttonText": "Happy: Ecstacy",
-      "buttonTooltip": "Send PLAY:s_Ecstacy.wav",
-      "buttonColor": "#2e9e5b",
+      "buttonText": "Frustrated: Anger",
+      "buttonTooltip": "Send REACT:SND_ANGER",
+      "buttonColor": "#d33b3b",
       "advancedView": false,
-      "value": "{\"data\": \"PLAY:s_Ecstacy.wav\"}"
+      "value": "{\"data\": \"REACT:SND_ANGER\"}"
     },
     "Publish!publish33": {
       "topicName": "/wizard/event",
       "datatype": "std_msgs/msg/String",
-      "buttonText": "Happy: Love",
-      "buttonTooltip": "Send PLAY:s_Love.wav",
-      "buttonColor": "#2e9e5b",
+      "buttonText": "Frustrated: PhraseNoNoNo",
+      "buttonTooltip": "Send REACT:SND_PHRASENONONO",
+      "buttonColor": "#d33b3b",
       "advancedView": false,
-      "value": "{\"data\": \"PLAY:s_Love.wav\"}"
+      "value": "{\"data\": \"REACT:SND_PHRASENONONO\"}"
     },
     "Publish!publish34": {
       "topicName": "/wizard/event",
       "datatype": "std_msgs/msg/String",
-      "buttonText": "Other: Acceptance",
-      "buttonTooltip": "Send PLAY:s_Acceptance.wav",
-      "buttonColor": "#6b6b7b",
+      "buttonText": "Happy: Joy",
+      "buttonTooltip": "Send REACT:SND_JOY",
+      "buttonColor": "#2e9e5b",
       "advancedView": false,
-      "value": "{\"data\": \"PLAY:s_Acceptance.wav\"}"
+      "value": "{\"data\": \"REACT:SND_JOY\"}"
     },
     "Publish!publish35": {
       "topicName": "/wizard/event",
       "datatype": "std_msgs/msg/String",
-      "buttonText": "Other: Awe",
-      "buttonTooltip": "Send PLAY:s_Awe.wav",
-      "buttonColor": "#6b6b7b",
+      "buttonText": "Happy: Joy2",
+      "buttonTooltip": "Send REACT:SND_JOY2",
+      "buttonColor": "#2e9e5b",
       "advancedView": false,
-      "value": "{\"data\": \"PLAY:s_Awe.wav\"}"
+      "value": "{\"data\": \"REACT:SND_JOY2\"}"
     },
     "Publish!publish36": {
       "topicName": "/wizard/event",
       "datatype": "std_msgs/msg/String",
-      "buttonText": "Other: Amazement",
-      "buttonTooltip": "Send PLAY:s_Amazement.wav",
-      "buttonColor": "#6b6b7b",
+      "buttonText": "Happy: Joy3",
+      "buttonTooltip": "Send REACT:SND_JOY3",
+      "buttonColor": "#2e9e5b",
       "advancedView": false,
-      "value": "{\"data\": \"PLAY:s_Amazement.wav\"}"
+      "value": "{\"data\": \"REACT:SND_JOY3\"}"
     },
     "Publish!publish37": {
       "topicName": "/wizard/event",
       "datatype": "std_msgs/msg/String",
-      "buttonText": "Other: PhraseHello",
-      "buttonTooltip": "Send PLAY:s_PhraseHello.wav",
-      "buttonColor": "#6b6b7b",
+      "buttonText": "Happy: Ecstacy",
+      "buttonTooltip": "Send REACT:SND_ECSTACY",
+      "buttonColor": "#2e9e5b",
       "advancedView": false,
-      "value": "{\"data\": \"PLAY:s_PhraseHello.wav\"}"
+      "value": "{\"data\": \"REACT:SND_ECSTACY\"}"
     },
     "Publish!publish38": {
       "topicName": "/wizard/event",
       "datatype": "std_msgs/msg/String",
-      "buttonText": "Other: PhraseByeBye",
-      "buttonTooltip": "Send PLAY:s_PhraseByeBye.wav",
-      "buttonColor": "#6b6b7b",
+      "buttonText": "Happy: Love",
+      "buttonTooltip": "Send REACT:SND_LOVE",
+      "buttonColor": "#2e9e5b",
       "advancedView": false,
-      "value": "{\"data\": \"PLAY:s_PhraseByeBye.wav\"}"
+      "value": "{\"data\": \"REACT:SND_LOVE\"}"
     },
     "Publish!publish39": {
       "topicName": "/wizard/event",
       "datatype": "std_msgs/msg/String",
-      "buttonText": "Other: PhraseOopsy",
-      "buttonTooltip": "Send PLAY:s_PhraseOopsy.wav",
+      "buttonText": "Other: Acceptance",
+      "buttonTooltip": "Send REACT:SND_ACCEPTANCE",
       "buttonColor": "#6b6b7b",
       "advancedView": false,
-      "value": "{\"data\": \"PLAY:s_PhraseOopsy.wav\"}"
+      "value": "{\"data\": \"REACT:SND_ACCEPTANCE\"}"
     },
     "Publish!publish40": {
       "topicName": "/wizard/event",
       "datatype": "std_msgs/msg/String",
-      "buttonText": "Stop sound",
-      "buttonTooltip": "Send STOP_TALKING",
-      "buttonColor": "#8a1c1c",
+      "buttonText": "Other: Awe",
+      "buttonTooltip": "Send REACT:SND_AWE",
+      "buttonColor": "#6b6b7b",
       "advancedView": false,
-      "value": "{\"data\": \"STOP_TALKING\"}"
+      "value": "{\"data\": \"REACT:SND_AWE\"}"
     },
-    "Tab!tab41": {
+    "Publish!publish41": {
+      "topicName": "/wizard/event",
+      "datatype": "std_msgs/msg/String",
+      "buttonText": "Other: Amazement",
+      "buttonTooltip": "Send REACT:SND_AMAZEMENT",
+      "buttonColor": "#6b6b7b",
+      "advancedView": false,
+      "value": "{\"data\": \"REACT:SND_AMAZEMENT\"}"
+    },
+    "Publish!publish42": {
+      "topicName": "/wizard/event",
+      "datatype": "std_msgs/msg/String",
+      "buttonText": "Other: PhraseHello",
+      "buttonTooltip": "Send REACT:SND_PHRASEHELLO",
+      "buttonColor": "#6b6b7b",
+      "advancedView": false,
+      "value": "{\"data\": \"REACT:SND_PHRASEHELLO\"}"
+    },
+    "Publish!publish43": {
+      "topicName": "/wizard/event",
+      "datatype": "std_msgs/msg/String",
+      "buttonText": "Other: PhraseByeBye",
+      "buttonTooltip": "Send REACT:SND_PHRASEBYEBYE",
+      "buttonColor": "#6b6b7b",
+      "advancedView": false,
+      "value": "{\"data\": \"REACT:SND_PHRASEBYEBYE\"}"
+    },
+    "Publish!publish44": {
+      "topicName": "/wizard/event",
+      "datatype": "std_msgs/msg/String",
+      "buttonText": "Other: PhraseOopsy",
+      "buttonTooltip": "Send REACT:SND_PHRASEOOPSY",
+      "buttonColor": "#6b6b7b",
+      "advancedView": false,
+      "value": "{\"data\": \"REACT:SND_PHRASEOOPSY\"}"
+    },
+    "Publish!publish45": {
+      "topicName": "/wizard/event",
+      "datatype": "std_msgs/msg/String",
+      "buttonText": "Say custom text ([voice] text)",
+      "buttonTooltip": "Send SAY_TEXT:[neutral] Type what Misty should say here",
+      "buttonColor": "#1f8a8a",
+      "advancedView": true,
+      "value": "{\"data\": \"SAY_TEXT:[neutral] Type what Misty should say here\"}"
+    },
+    "Tab!tab46": {
       "activeTabIdx": 0,
       "tabs": [
         {
-          "title": "Speech",
+          "title": "Escort",
           "layout": {
             "first": {
-              "first": {
-                "first": "Publish!publish0",
+              "first": "Publish!publish2",
+              "second": {
+                "first": "Publish!publish3",
                 "second": {
-                  "first": "Publish!publish1",
+                  "first": "Publish!publish4",
                   "second": {
-                    "first": "Publish!publish2",
-                    "second": {
-                      "first": "Publish!publish3",
-                      "second": "Publish!publish4",
-                      "direction": "row",
-                      "splitPercentage": 50.0
-                    },
+                    "first": "Publish!publish5",
+                    "second": "Publish!publish6",
                     "direction": "row",
-                    "splitPercentage": 33.33333333333333
+                    "splitPercentage": 50.0
                   },
                   "direction": "row",
-                  "splitPercentage": 25.0
+                  "splitPercentage": 33.33333333333333
                 },
                 "direction": "row",
-                "splitPercentage": 20.0
+                "splitPercentage": 25.0
               },
+              "direction": "row",
+              "splitPercentage": 20.0
+            },
+            "second": {
+              "first": "Publish!publish7",
+              "second": "Publish!publish8",
+              "direction": "row",
+              "splitPercentage": 50.0
+            },
+            "direction": "column",
+            "splitPercentage": 50.0
+          }
+        },
+        {
+          "title": "Breakdown",
+          "layout": {
+            "first": "Publish!publish9",
+            "second": {
+              "first": "Publish!publish10",
               "second": {
-                "first": {
-                  "first": "Publish!publish5",
-                  "second": {
-                    "first": "Publish!publish6",
-                    "second": {
-                      "first": "Publish!publish7",
-                      "second": {
-                        "first": "Publish!publish8",
-                        "second": "Publish!publish9",
-                        "direction": "row",
-                        "splitPercentage": 50.0
-                      },
-                      "direction": "row",
-                      "splitPercentage": 33.33333333333333
-                    },
-                    "direction": "row",
-                    "splitPercentage": 25.0
-                  },
-                  "direction": "row",
-                  "splitPercentage": 20.0
-                },
-                "second": {
-                  "first": "Publish!publish10",
-                  "second": {
-                    "first": "Publish!publish11",
-                    "second": {
-                      "first": "Publish!publish12",
-                      "second": {
-                        "first": "Publish!publish13",
-                        "second": "Publish!publish14",
-                        "direction": "row",
-                        "splitPercentage": 50.0
-                      },
-                      "direction": "row",
-                      "splitPercentage": 33.33333333333333
-                    },
-                    "direction": "row",
-                    "splitPercentage": 25.0
-                  },
-                  "direction": "row",
-                  "splitPercentage": 20.0
-                },
-                "direction": "column",
+                "first": "Publish!publish11",
+                "second": "Publish!publish12",
+                "direction": "row",
                 "splitPercentage": 50.0
               },
-              "direction": "column",
+              "direction": "row",
               "splitPercentage": 33.33333333333333
             },
-            "second": "Publish!publish15",
-            "direction": "column",
-            "splitPercentage": 72.0
+            "direction": "row",
+            "splitPercentage": 25.0
+          }
+        },
+        {
+          "title": "Responses",
+          "layout": {
+            "first": "Publish!publish13",
+            "second": {
+              "first": "Publish!publish14",
+              "second": "Publish!publish15",
+              "direction": "row",
+              "splitPercentage": 50.0
+            },
+            "direction": "row",
+            "splitPercentage": 33.33333333333333
           }
         },
         {
@@ -482,24 +515,9 @@
                   "first": "Publish!publish22",
                   "second": {
                     "first": "Publish!publish23",
-                    "second": "Publish!publish24",
-                    "direction": "row",
-                    "splitPercentage": 50.0
-                  },
-                  "direction": "row",
-                  "splitPercentage": 33.33333333333333
-                },
-                "direction": "row",
-                "splitPercentage": 25.0
-              },
-              "second": {
-                "first": {
-                  "first": "Publish!publish25",
-                  "second": {
-                    "first": "Publish!publish26",
                     "second": {
-                      "first": "Publish!publish27",
-                      "second": "Publish!publish28",
+                      "first": "Publish!publish24",
+                      "second": "Publish!publish25",
                       "direction": "row",
                       "splitPercentage": 50.0
                     },
@@ -509,16 +527,41 @@
                   "direction": "row",
                   "splitPercentage": 25.0
                 },
+                "direction": "row",
+                "splitPercentage": 20.0
+              },
+              "second": {
+                "first": {
+                  "first": "Publish!publish26",
+                  "second": {
+                    "first": "Publish!publish27",
+                    "second": {
+                      "first": "Publish!publish28",
+                      "second": {
+                        "first": "Publish!publish29",
+                        "second": "Publish!publish30",
+                        "direction": "row",
+                        "splitPercentage": 50.0
+                      },
+                      "direction": "row",
+                      "splitPercentage": 33.33333333333333
+                    },
+                    "direction": "row",
+                    "splitPercentage": 25.0
+                  },
+                  "direction": "row",
+                  "splitPercentage": 20.0
+                },
                 "second": {
                   "first": {
-                    "first": "Publish!publish29",
+                    "first": "Publish!publish31",
                     "second": {
-                      "first": "Publish!publish30",
+                      "first": "Publish!publish32",
                       "second": {
-                        "first": "Publish!publish31",
+                        "first": "Publish!publish33",
                         "second": {
-                          "first": "Publish!publish32",
-                          "second": "Publish!publish33",
+                          "first": "Publish!publish34",
+                          "second": "Publish!publish35",
                           "direction": "row",
                           "splitPercentage": 50.0
                         },
@@ -533,32 +576,42 @@
                   },
                   "second": {
                     "first": {
-                      "first": "Publish!publish34",
+                      "first": "Publish!publish36",
                       "second": {
-                        "first": "Publish!publish35",
+                        "first": "Publish!publish37",
                         "second": {
-                          "first": "Publish!publish36",
+                          "first": "Publish!publish38",
                           "second": {
-                            "first": "Publish!publish37",
-                            "second": {
-                              "first": "Publish!publish38",
-                              "second": "Publish!publish39",
-                              "direction": "row",
-                              "splitPercentage": 50.0
-                            },
+                            "first": "Publish!publish39",
+                            "second": "Publish!publish40",
                             "direction": "row",
-                            "splitPercentage": 33.33333333333333
+                            "splitPercentage": 50.0
                           },
                           "direction": "row",
-                          "splitPercentage": 25.0
+                          "splitPercentage": 33.33333333333333
                         },
                         "direction": "row",
-                        "splitPercentage": 20.0
+                        "splitPercentage": 25.0
                       },
                       "direction": "row",
-                      "splitPercentage": 16.666666666666664
+                      "splitPercentage": 20.0
                     },
-                    "second": "Publish!publish40",
+                    "second": {
+                      "first": "Publish!publish41",
+                      "second": {
+                        "first": "Publish!publish42",
+                        "second": {
+                          "first": "Publish!publish43",
+                          "second": "Publish!publish44",
+                          "direction": "row",
+                          "splitPercentage": 50.0
+                        },
+                        "direction": "row",
+                        "splitPercentage": 33.33333333333333
+                      },
+                      "direction": "row",
+                      "splitPercentage": 25.0
+                    },
                     "direction": "column",
                     "splitPercentage": 50.0
                   },
@@ -574,37 +627,23 @@
             "direction": "column",
             "splitPercentage": 16.666666666666664
           }
+        },
+        {
+          "title": "Custom text",
+          "layout": "Publish!publish45"
         }
       ]
     },
-    "Publish!publish42": {
+    "Publish!publish47": {
       "topicName": "/wizard/event",
       "datatype": "std_msgs/msg/String",
-      "buttonText": "\u26a0 FAILURE: lost + sad sound + ask for help",
-      "buttonTooltip": "Send FAILURE",
-      "buttonColor": "#d33b3b",
-      "advancedView": false,
-      "value": "{\"data\": \"FAILURE\"}"
-    },
-    "Publish!publish43": {
-      "topicName": "/wizard/event",
-      "datatype": "std_msgs/msg/String",
-      "buttonText": "Cancel / stop talking",
-      "buttonTooltip": "Send STOP_TALKING",
-      "buttonColor": "#8a1c1c",
-      "advancedView": false,
-      "value": "{\"data\": \"STOP_TALKING\"}"
-    },
-    "Publish!publish44": {
-      "topicName": "/wizard/event",
-      "datatype": "std_msgs/msg/String",
-      "buttonText": "Next segment \u25b6",
+      "buttonText": "Next segment ▶",
       "buttonTooltip": "Send NEXT_SEGMENT",
       "buttonColor": "#3b7dd8",
       "advancedView": false,
       "value": "{\"data\": \"NEXT_SEGMENT\"}"
     },
-    "Publish!publish45": {
+    "Publish!publish48": {
       "topicName": "/wizard/event",
       "datatype": "std_msgs/msg/String",
       "buttonText": "Look back",
@@ -613,7 +652,7 @@
       "advancedView": false,
       "value": "{\"data\": \"LOOK_BACK\"}"
     },
-    "Publish!publish46": {
+    "Publish!publish49": {
       "topicName": "/wizard/event",
       "datatype": "std_msgs/msg/String",
       "buttonText": "Head centre",
@@ -622,7 +661,7 @@
       "advancedView": false,
       "value": "{\"data\": \"HEAD_CENTER\"}"
     },
-    "Publish!publish47": {
+    "Publish!publish50": {
       "topicName": "/wizard/event",
       "datatype": "std_msgs/msg/String",
       "buttonText": "Route reset",
@@ -631,43 +670,43 @@
       "advancedView": false,
       "value": "{\"data\": \"ROUTE_RESET\"}"
     },
-    "Publish!publish48": {
+    "Publish!publish51": {
       "topicName": "/wizard/event",
       "datatype": "std_msgs/msg/String",
-      "buttonText": "\u25c0 Nudge L",
+      "buttonText": "◀ Nudge L",
       "buttonTooltip": "Send NUDGE_L",
       "buttonColor": "#6b6b7b",
       "advancedView": false,
       "value": "{\"data\": \"NUDGE_L\"}"
     },
-    "Publish!publish49": {
+    "Publish!publish52": {
       "topicName": "/wizard/event",
       "datatype": "std_msgs/msg/String",
-      "buttonText": "\u25b2 Nudge fwd",
+      "buttonText": "▲ Nudge fwd",
       "buttonTooltip": "Send NUDGE_FWD",
       "buttonColor": "#6b6b7b",
       "advancedView": false,
       "value": "{\"data\": \"NUDGE_FWD\"}"
     },
-    "Publish!publish50": {
+    "Publish!publish53": {
       "topicName": "/wizard/event",
       "datatype": "std_msgs/msg/String",
-      "buttonText": "Nudge R \u25b6",
+      "buttonText": "Nudge R ▶",
       "buttonTooltip": "Send NUDGE_R",
       "buttonColor": "#6b6b7b",
       "advancedView": false,
       "value": "{\"data\": \"NUDGE_R\"}"
     },
-    "Publish!publish51": {
+    "Publish!publish54": {
       "topicName": "/wizard/event",
       "datatype": "std_msgs/msg/String",
-      "buttonText": "\u25a0 STOP all",
+      "buttonText": "■ STOP all",
       "buttonTooltip": "Send STOP",
       "buttonColor": "#8a1c1c",
       "advancedView": false,
       "value": "{\"data\": \"STOP\"}"
     },
-    "Publish!publish52": {
+    "Publish!publish55": {
       "topicName": "/wizard/event",
       "datatype": "std_msgs/msg/String",
       "buttonText": "START session",
@@ -676,7 +715,7 @@
       "advancedView": false,
       "value": "{\"data\": \"START\"}"
     },
-    "Publish!publish53": {
+    "Publish!publish56": {
       "topicName": "/wizard/event",
       "datatype": "std_msgs/msg/String",
       "buttonText": "END session",
@@ -685,7 +724,7 @@
       "advancedView": false,
       "value": "{\"data\": \"END\"}"
     },
-    "Publish!publish54": {
+    "Publish!publish57": {
       "topicName": "/wizard/event",
       "datatype": "std_msgs/msg/String",
       "buttonText": "Log touch (sim)",
@@ -694,7 +733,10 @@
       "advancedView": false,
       "value": "{\"data\": \"TOUCH_SIM\"}"
     },
-    "RawMessages!rawmessages55": {
+    "Parameters!parameters58": {
+      "title": "Session: set participant_id + condition, then START"
+    },
+    "RawMessages!rawmessages59": {
       "foxglovePanelTitle": "Session",
       "topicPath": "/wizard/session.data",
       "diffEnabled": false,
@@ -703,7 +745,7 @@
       "showFullMessageForDiff": false,
       "fontSize": 18
     },
-    "RawMessages!rawmessages56": {
+    "RawMessages!rawmessages60": {
       "foxglovePanelTitle": "Misty said / played",
       "topicPath": "/wizard/said.data",
       "diffEnabled": false,
@@ -712,7 +754,7 @@
       "showFullMessageForDiff": false,
       "fontSize": 16
     },
-    "RawMessages!rawmessages57": {
+    "RawMessages!rawmessages61": {
       "foxglovePanelTitle": "Last action / head touch",
       "topicPath": "/wizard/last.data",
       "diffEnabled": false,
@@ -721,7 +763,7 @@
       "showFullMessageForDiff": false,
       "fontSize": 16
     },
-    "RawMessages!rawmessages58": {
+    "RawMessages!rawmessages62": {
       "foxglovePanelTitle": "Next route segment",
       "topicPath": "/wizard/route.data",
       "diffEnabled": false,
@@ -730,13 +772,13 @@
       "showFullMessageForDiff": false,
       "fontSize": 16
     },
-    "Image!image59": {
+    "Image!image63": {
       "foxglovePanelTitle": "Misty camera",
       "imageMode": {
         "imageTopic": "/misty/camera/image/compressed"
       }
     },
-    "Teleop!teleop60": {
+    "Teleop!teleop64": {
       "foxglovePanelTitle": "DRIVE (arrows = forward/back/turn)",
       "topic": "/cmd_vel",
       "publishRate": 5,
@@ -757,7 +799,7 @@
         "value": -1
       }
     },
-    "Teleop!teleop61": {
+    "Teleop!teleop65": {
       "foxglovePanelTitle": "HEAD / CAMERA (up/down = tilt, left/right = pan)",
       "topic": "/misty/head_cmd",
       "publishRate": 10,
@@ -777,9 +819,6 @@
         "field": "angular-z",
         "value": -1
       }
-    },
-    "Parameters!parameters62": {
-      "title": "Session: set participant_id + condition, then START"
     }
   },
   "globalVariables": {},
@@ -789,22 +828,22 @@
   },
   "layout": {
     "first": {
-      "first": "Image!image59",
+      "first": "Image!image63",
       "second": {
         "first": {
-          "first": "Teleop!teleop60",
-          "second": "Teleop!teleop61",
+          "first": "Teleop!teleop64",
+          "second": "Teleop!teleop65",
           "direction": "row",
           "splitPercentage": 50.0
         },
         "second": {
           "first": {
-            "first": "Publish!publish44",
+            "first": "Publish!publish47",
             "second": {
-              "first": "Publish!publish45",
+              "first": "Publish!publish48",
               "second": {
-                "first": "Publish!publish46",
-                "second": "Publish!publish47",
+                "first": "Publish!publish49",
+                "second": "Publish!publish50",
                 "direction": "row",
                 "splitPercentage": 50.0
               },
@@ -815,12 +854,12 @@
             "splitPercentage": 25.0
           },
           "second": {
-            "first": "Publish!publish48",
+            "first": "Publish!publish51",
             "second": {
-              "first": "Publish!publish49",
+              "first": "Publish!publish52",
               "second": {
-                "first": "Publish!publish50",
-                "second": "Publish!publish51",
+                "first": "Publish!publish53",
+                "second": "Publish!publish54",
                 "direction": "row",
                 "splitPercentage": 50.0
               },
@@ -841,12 +880,12 @@
     },
     "second": {
       "first": {
-        "first": "RawMessages!rawmessages55",
+        "first": "RawMessages!rawmessages59",
         "second": {
-          "first": "RawMessages!rawmessages56",
+          "first": "RawMessages!rawmessages60",
           "second": {
-            "first": "RawMessages!rawmessages57",
-            "second": "RawMessages!rawmessages58",
+            "first": "RawMessages!rawmessages61",
+            "second": "RawMessages!rawmessages62",
             "direction": "column",
             "splitPercentage": 50.0
           },
@@ -858,34 +897,34 @@
       },
       "second": {
         "first": {
-          "first": "Publish!publish42",
-          "second": "Publish!publish43",
+          "first": "Publish!publish0",
+          "second": "Publish!publish1",
           "direction": "row",
-          "splitPercentage": 75.0
+          "splitPercentage": 50.0
         },
         "second": {
-          "first": "Tab!tab41",
+          "first": "Tab!tab46",
           "second": {
             "first": {
-              "first": "Publish!publish52",
+              "first": "Publish!publish55",
               "second": {
-                "first": "Publish!publish53",
-                "second": "Publish!publish54",
+                "first": "Publish!publish56",
+                "second": "Publish!publish57",
                 "direction": "row",
                 "splitPercentage": 50.0
               },
               "direction": "row",
               "splitPercentage": 33.33333333333333
             },
-            "second": "Parameters!parameters62",
+            "second": "Parameters!parameters58",
             "direction": "row",
             "splitPercentage": 55.00000000000001
           },
           "direction": "column",
-          "splitPercentage": 76.47058823529412
+          "splitPercentage": 77.14285714285715
         },
         "direction": "column",
-        "splitPercentage": 15.0
+        "splitPercentage": 12.5
       },
       "direction": "column",
       "splitPercentage": 20.0

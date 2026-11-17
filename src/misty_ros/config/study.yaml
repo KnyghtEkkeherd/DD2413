@@ -1,19 +1,7 @@
-# Wizard configuration. Reloaded at each START, so you can tune between runs
-# without restarting ROS.
+# Wizard configuration (route, look-back, nudges). Reloaded at each START.
+# What Misty says / plays is in reactions.json.
 
-# FAILURE button: one press runs these steps in order. Steps:
-#   say: <speech_bank category>        speak a random variant, wait until done
-#   play: <file.wav> | sound_group: <group in sounds.yaml>   play, then wait `wait` s
-#   pause: <seconds>
-# STOP or Stop talking cancels the sequence.
-failure_sequence:
-  - say: LOST
-  - pause: 0.5
-  - sound_group: Sad
-    wait: 3.0
-  - say: ASK_HELP
-
-speech:                     # used to wait for speech to finish if Misty's
+speech:                     # used in sequences to wait for speech to finish if Misty's
   fallback_s_per_word: 0.4  # TextToSpeechComplete event isn't available
   fallback_extra_s: 1.0
   completion_margin_s: 5    # max extra wait beyond the estimate
@@ -22,6 +10,7 @@ look_back:
   head_yaw_deg: 81          # Misty's max yaw (+ = left)
   head_velocity: 70         # % of max head speed
   return_after_s: 4         # head turns back to centre after this long
+  say: LOOK_BACK            # reaction (reactions.json) spoken when looking back; "" = none
 
 nudge:                      # small drift corrections
   turn_velocity: 30         # % angular speed

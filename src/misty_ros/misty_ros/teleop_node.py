@@ -33,9 +33,9 @@ class MistyTeleop(Node):
         super().__init__('misty_teleop')
         self.declare_parameter('misty_ip', '')
         self.declare_parameter('linear_scale', 30.0)    # Twist 1.0 -> 30% speed
-        self.declare_parameter('angular_scale', 40.0)
+        self.declare_parameter('angular_scale', 70.0)
         self.declare_parameter('drive_time_ms', 600)
-        self.declare_parameter('head_step_deg', 10.0)
+        self.declare_parameter('head_step_deg', 13.0)
         self.declare_parameter('head_velocity', 100.0)  # % of max head speed
         self.declare_parameter('request_timeout', 1.0)
 
