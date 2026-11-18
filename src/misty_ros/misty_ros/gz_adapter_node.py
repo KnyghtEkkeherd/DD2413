@@ -170,7 +170,7 @@ class GzAdapter(Node):
             r.radiation_type = Range.INFRARED
             r.field_of_view = math.radians(25.0)
             r.min_range, r.max_range = msg.range_min, msg.range_max
-            r.range = float(d) if math.isfinite(d) and msg.range_min <= d < msg.range_max else math.inf
+            r.range = float(d) if math.isfinite(d) and msg.range_min <= d < msg.range_max else msg.range_max
             self.pub_tof.publish(r)
 
     def on_truth(self, msg: Odometry):

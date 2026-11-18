@@ -241,8 +241,9 @@ class MistySensors(Node):
         self.pub_imu.publish(imu)
 
     def on_tof(self, m):
-        """Valid reading -> its range; invalid / out of range -> +inf ("nothing seen", REP 117),
-        so Nav2's range layer clears and the collision monitor keeps getting fresh data."""
+        """Valid reading -> its range; invalid / out of range -> max_range ("nothing seen"):
+        Nav2's range layer clears on it, and the collision monitor (which rejects +inf)
+        keeps getting fresh data."""
         pos = str(first(m, 'sensorposition', 'position', default='unknown')).lower()
         if pos.startswith('down'):               # edge (cliff) sensors: not obstacles
             return
@@ -255,7 +256,7 @@ class MistySensors(Node):
         r.radiation_type = Range.INFRARED
         r.field_of_view = math.radians(25.0)
         r.min_range, r.max_range = 0.01, 2.0
-        r.range = float(dist) if valid else math.inf
+        r.range = float(dist) if valid else r.max_range     # max_range = nothing seen
         self.pub_tof.publish(r)
 
     def on_artag(self, m):

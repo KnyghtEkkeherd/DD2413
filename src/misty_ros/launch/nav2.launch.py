@@ -29,6 +29,7 @@ from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription, Opaq
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import EnvironmentVariable, LaunchConfiguration
 from launch_ros.actions import Node
+from launch_ros.parameter_descriptions import ParameterFile
 
 # aruco_dictionary (OpenCV enum) -> aruco_opencv marker_dict name
 DICTS = ['4X4_50', '4X4_100', '4X4_250', '4X4_1000', '5X5_50', '5X5_100', '5X5_250', '5X5_1000',
@@ -69,7 +70,7 @@ def setup(context):
     shared = {'marker_map': marker_map if isinstance(marker_map, str) else json.dumps(marker_map)}
 
     loc = str(share / 'config' / 'localization.yaml')
-    nav2 = str(share / 'config' / 'nav2_params.yaml')
+    nav2 = ParameterFile(str(share / 'config' / 'nav2_params.yaml'), allow_substs=True)  # $(find-pkg-share ...)
     actions = [
         Node(package='robot_state_publisher', executable='robot_state_publisher', name='robot_state_publisher',
              parameters=[{'robot_description': (share / 'urdf' / 'misty.urdf').read_text()}]),

@@ -206,7 +206,7 @@ class NavSim(Node):
             rg.header.stamp, rg.header.frame_id = stamp, f'tof_{name}'
             rg.radiation_type, rg.field_of_view = Range.INFRARED, math.radians(25.0)
             rg.min_range, rg.max_range = 0.01, float(self.p('tof_max_m'))
-            rg.range = max(0.01, d + random.gauss(0, 0.01)) if d <= rg.max_range else math.inf
+            rg.range = max(0.01, d + random.gauss(0, 0.01)) if d < rg.max_range else rg.max_range
             self.pub_tof.publish(rg)
         t = PoseStamped()
         t.header.stamp, t.header.frame_id = stamp, 'map'

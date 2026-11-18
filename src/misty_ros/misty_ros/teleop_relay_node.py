@@ -16,6 +16,7 @@ to command for the same input. Parameters are shared (/** in misty_params.yaml).
 import math
 
 import rclpy
+from rclpy.executors import ExternalShutdownException
 from geometry_msgs.msg import Twist, TwistStamped
 from rclpy.node import Node
 
@@ -50,7 +51,7 @@ def main():
     node = TeleopRelay()
     try:
         rclpy.spin(node)
-    except KeyboardInterrupt:
+    except (KeyboardInterrupt, ExternalShutdownException):
         pass
     finally:
         node.destroy_node()

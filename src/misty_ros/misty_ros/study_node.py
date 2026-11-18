@@ -22,6 +22,7 @@ import time
 from pathlib import Path
 
 import rclpy
+from rclpy.executors import ExternalShutdownException
 import yaml
 from ament_index_python.packages import get_package_share_directory
 from geometry_msgs.msg import Vector3
@@ -132,6 +133,10 @@ class Study(Node):
     def on_event(self, msg):
         head, _, arg = msg.data.strip().partition(':')
         name = head.strip().upper()
+        if name == 'STOP':                             # the emergency lock works with or without a session
+            self.estop_pub.publish(Bool(data=True))
+        elif name == 'RESUME':
+            self.estop_pub.publish(Bool(data=False))
         if self.state == 'IDLE':
             return
         if name == 'STATE':
@@ -336,7 +341,7 @@ def main():
     node = Study()
     try:
         rclpy.spin(node)
-    except KeyboardInterrupt:
+    except (KeyboardInterrupt, ExternalShutdownException):
         pass
     finally:
         node.destroy_node()

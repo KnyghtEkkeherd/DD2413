@@ -25,6 +25,7 @@ import math
 import time
 
 import rclpy
+from rclpy.executors import ExternalShutdownException
 from action_msgs.msg import GoalStatus
 from geometry_msgs.msg import PoseStamped, PoseWithCovarianceStamped, Vector3
 from nav2_msgs.action import NavigateToPose, Spin
@@ -320,7 +321,7 @@ def main():
     node = Mission()
     try:
         rclpy.spin(node)
-    except KeyboardInterrupt:
+    except (KeyboardInterrupt, ExternalShutdownException):
         pass
     finally:
         node.cancel()
