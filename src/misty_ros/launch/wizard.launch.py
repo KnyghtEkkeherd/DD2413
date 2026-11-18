@@ -13,6 +13,7 @@ import os
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
+from launch.conditions import IfCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import EnvironmentVariable, LaunchConfiguration
 from launch_ros.actions import Node
@@ -29,6 +30,12 @@ def generate_launch_description():
         DeclareLaunchArgument('reactions', default_value=os.path.join(share, 'config', 'reactions.json')),
         DeclareLaunchArgument('params_file', default_value=os.path.join(share, 'config', 'misty_params.yaml')),
         DeclareLaunchArgument('session_dir', default_value=os.path.expanduser('~/misty_ws/sessions')),
+        DeclareLaunchArgument('nav', default_value='false',
+                              description='also run autonomous marker navigation (nav.launch.py)'),
+        IncludeLaunchDescription(
+            PythonLaunchDescriptionSource(os.path.join(share, 'launch', 'nav.launch.py')),
+            condition=IfCondition(LaunchConfiguration('nav')),
+            launch_arguments={'misty_ip': ip, 'params_file': LaunchConfiguration('params_file')}.items()),
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource(os.path.join(share, 'launch', 'misty_foxglove.launch.py')),
             launch_arguments={'misty_ip': ip, 'params_file': LaunchConfiguration('params_file')}.items()),

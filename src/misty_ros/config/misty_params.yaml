@@ -13,6 +13,8 @@ misty_teleop:
     head_step_deg: 13.0     # head move per head message (Foxglove/keyboard: 10 msg/s)
     head_velocity: 100.0    # head motor speed, % of max
     arm_velocity: 80.0      # arm motor speed, % of max
+    parallel_requests: 2    # commands in flight per channel (drive/head/arms): lower latency;
+                            # the last command is re-sent so Misty always ends in the latest state
 
 misty_gamepad_teleop:
   ros__parameters:
@@ -43,6 +45,96 @@ misty_keyboard_teleop:
 
 misty_camera:
   ros__parameters:
-    fps: 2.0
+    # stream: Misty's video stream (low latency, falls back to poll if it fails)
+    # rtsp:   Misty's AV stream via OpenCV (highest fps; DISABLES Misty's camera
+    #         service: no on-board ArUco -> set misty_sensors aruco_source: opencv)
+    # poll:   single photos, fps per second (slowest)
+    mode: stream
     width: 640
     height: 480
+    quality: 60             # stream: JPEG quality (lower = smaller frames = less latency)
+    stream_port: 5678
+    rtsp_port: 1936
+    rtsp_fps: 15
+    rotate_deg: 0           # rotate frames clockwise (AV stream is rotated: try 90)
+    fps: 2.0                # poll mode (and poll fallback)
+
+# ------------------------------------------------- autonomous navigation
+# Started with:  ros2 launch misty_ros wizard.launch.py misty_ip:=... nav:=true
+# (simulator:    ros2 launch misty_ros nav.launch.py sim:=true)
+
+misty_nav:
+  ros__parameters:
+    # Mission: ArUco marker ids to drive to, in order. The marker's role sets
+    # what happens on arrival.
+    mission: [1, 2, 3]
+    start_markers: [1]      # greet (start_reaction), wait for NAV GO
+    fail_markers: [2]       # if fail_trigger: failure (fail_reaction), wait for NAV GO
+    goal_markers: [3]       # arrival (goal_reaction), mission done
+                            # any other id in the mission: waypoint, drive on
+    fail_trigger: false     # the wizard sets this at runtime (Foxglove Parameters
+                            # panel, /misty_nav fail_trigger) for BREAKDOWN runs
+    start_reaction: GREETING   # reactions.json ids
+    fail_reaction: FAILURE
+    goal_reaction: ARRIVE
+    waypoint_reaction: ""
+    wait_after_start: true
+    wait_after_fail: true
+    head_pitch_deg: 0.0     # head pose while navigating (camera must face forward)
+    # Speeds in teleop units (1.0 = misty_teleop linear_scale / angular_scale %)
+    max_linear: 0.8
+    max_angular: 0.6
+    k_linear: 0.8
+    k_angular: 1.2
+    turn_in_place_deg: 25.0 # turn on the spot first if the target is further off than this
+    standoff_m: 0.6         # stop this far in front of a marker
+    arrive_tol_m: 0.12
+    search_turn_s: 0.8      # when no marker is known: turn this long ...
+    search_dwell_s: 1.2     # ... then hold still this long to look
+    search_angular: 0.5
+    explore_turn_deg: 90.0  # target not seen after a full turn: turn this much (alternating
+    explore_distance_m: 0.8 # left / right), drive this far to a new viewpoint, look again
+    obstacle_stop_m: 0.35   # closer than this: stop and steer around
+    obstacle_slow_m: 0.7    # closer than this: slow down
+    obstacle_clear_m: 0.6
+    avoid_forward_s: 1.5
+    avoid_max_turn_s: 4.0
+
+misty_slam:
+  ros__parameters:
+    wheel_base_m: 0.11      # distance between Misty's tracks (used if no IMU)
+    use_imu_yaw: true       # heading changes from the IMU (better than wheels)
+    imu_yaw_sign: 1.0       # -1.0 if turning left makes Misty's yaw go down
+    odom_noise_dist: 0.05
+    odom_noise_turn: 0.05
+    obs_noise_range_frac: 0.06
+    obs_noise_bearing_deg: 3.0
+    max_obs_range_m: 4.0
+    camera_offset_x_m: 0.06 # camera ahead of the wheel axle
+    # Optional fixed marker positions (map frame: start position, x forward,
+    # y left), JSON. Empty = learn all markers by SLAM.
+    known_markers: "{}"     # e.g. '{"1": [1.2, 0.0], "3": [1.5, -2.0]}'
+
+misty_sensors:
+  ros__parameters:
+    aruco_source: robot     # robot = Misty's on-board detector; opencv = detect
+                            # on /misty/camera/image/compressed in the VM
+    aruco_dictionary: 0     # OpenCV dictionary id: 0 = DICT_4X4_50, 4 = 5X5_50, 8 = 6X6_50
+    marker_size_m: 0.15     # printed marker side length (black border to border)
+    robot_tag_scale: 1.0    # on-board detector translation -> metres (0.001 if mm)
+    camera_hfov_deg: 70.0   # OpenCV fallback: camera field of view (or set fx/fy/cx/cy)
+    encoder_scale: 0.001    # Misty encoder units -> metres
+    depth_enabled: false    # obstacle scan from the depth camera, if your Misty has one
+
+# Gazebo simulation (gazebo.launch.py). world: same format as nav_sim:
+# {"markers": {"id": [x, y, facing_deg]}, "obstacles": [[x, y, radius]],
+#  "walls": [xmin, ymin, xmax, ymax]}; Misty starts at (0, 0) facing +x.
+# facing_deg is the direction the printed side faces (180 = towards -x).
+misty_gz_adapter:
+  ros__parameters:
+    slip: 0.03              # extra wheel-encoder noise (fraction of distance)
+    command_latency_s: 0.03 # extra delay on drive commands, like Misty's HTTP round trip
+misty_gz:
+  ros__parameters:
+    world: '{"markers": {"1": [1.2, 0.0, 180], "2": [3.5, 1.5, 180], "3": [1.5, -2.0, 90]},
+             "obstacles": [[2.2, 0.85, 0.25]], "walls": [-1.0, -3.0, 5.0, 3.0]}'

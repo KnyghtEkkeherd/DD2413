@@ -10,3 +10,6 @@ log/
 
 # study session logs (participant data)
 sessions/
+
+# generated printable markers
+markers/

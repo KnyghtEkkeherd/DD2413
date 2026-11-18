@@ -25,6 +25,11 @@ setup(
             'wizard_node = misty_ros.wizard_node:main',
             'keyboard_teleop = misty_ros.keyboard_teleop:main',
             'gamepad_teleop = misty_ros.gamepad_teleop:main',
+            'sensors_node = misty_ros.sensors_node:main',
+            'slam_node = misty_ros.slam_node:main',
+            'nav_node = misty_ros.nav_node:main',
+            'nav_sim = misty_ros.nav_sim_node:main',
+            'gz_adapter = misty_ros.gz_adapter_node:main',
         ],
     },
 )

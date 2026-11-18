@@ -14,15 +14,17 @@
                 Other nodes (the wizard) publish head moves they make here, so
                 the next head_cmd nudges from where the head really is.
 
-Low latency: drive, head and arms each have their own sender thread, so a slow
-reply from Misty for one never delays the others, and each sender always sends
-the NEWEST command (older ones that piled up while waiting are skipped).
+Low latency: drive, head and arms each have their own senders, so a slow reply
+from Misty for one never delays the others; each always sends the NEWEST
+command (older ones that piled up are skipped), with up to parallel_requests
+commands in flight so a new command never waits for the previous reply.
 
 These match the Foxglove Teleop panel's default button mapping, so two Teleop
 panels (one per topic) work without reconfiguring the buttons.
 """
 import math
 import threading
+import time
 
 import rclpy
 from geometry_msgs.msg import Twist, Vector3
@@ -43,15 +45,25 @@ class LatestSender:
     """Background sender that only ever sends the most recent command.
 
     put() replaces any command still waiting (optionally merging with it), so
-    commands never queue up behind a slow robot.
+    commands never queue up behind a slow robot. With workers > 1, a new
+    command goes out while earlier ones are still waiting for Misty's reply.
+    Parallel requests can, rarely, be applied out of order, so after any
+    overlap the last command is re-sent once things go quiet (settle_s): the
+    robot always ends in the latest commanded state (e.g. a stop is never
+    overtaken by an older drive command).
     """
 
-    def __init__(self, name, send, merge=None):
-        self.send, self.merge = send, merge
+    def __init__(self, name, send, merge=None, workers=2, settle_s=0.15):
+        self.send, self.merge, self.settle_s = send, merge, settle_s
         self.cond = threading.Condition()
         self.item = None
         self.stopped = False
-        threading.Thread(target=self.run, name=name, daemon=True).start()
+        self.in_flight = 0
+        self.last = None
+        self.overlap = False
+        self.last_done = 0.0
+        for k in range(max(1, int(workers))):
+            threading.Thread(target=self.run, name=f'{name}-{k}', daemon=True).start()
 
     def put(self, item):
         with self.cond:
@@ -63,17 +75,31 @@ class LatestSender:
     def run(self):
         while True:
             with self.cond:
-                while self.item is None and not self.stopped:
-                    self.cond.wait()
+                while not self.stopped and self.item is None:
+                    if (self.overlap and self.in_flight == 0 and
+                            time.monotonic() - self.last_done >= self.settle_s):
+                        self.item, self.overlap = self.last, False      # confirm final state
+                        break
+                    self.cond.wait(timeout=self.settle_s if self.overlap else None)
                 if self.stopped:
                     return
                 item, self.item = self.item, None
-            self.send(item)
+                if self.in_flight > 0:
+                    self.overlap = True
+                self.in_flight += 1
+                self.last = item
+            try:
+                self.send(item)
+            finally:
+                with self.cond:
+                    self.in_flight -= 1
+                    self.last_done = time.monotonic()
+                    self.cond.notify_all()
 
     def close(self):
         with self.cond:
             self.stopped = True
-            self.cond.notify()
+            self.cond.notify_all()
 
 
 class MistyTeleop(Node):
@@ -87,6 +113,7 @@ class MistyTeleop(Node):
         self.declare_parameter('head_velocity', 100.0)  # % of max head speed
         self.declare_parameter('arm_velocity', 80.0)    # % of max arm speed
         self.declare_parameter('request_timeout', 1.0)
+        self.declare_parameter('parallel_requests', 2)  # commands in flight per channel
 
         ip = self.get_parameter('misty_ip').value
         if not ip:
@@ -96,9 +123,10 @@ class MistyTeleop(Node):
         self.pitch = 0.0
         self.yaw = 0.0
 
-        self.drive_tx = LatestSender('drive', self.send_drive)
-        self.head_tx = LatestSender('head', self.send_head)
-        self.arms_tx = LatestSender('arms', self.send_arms, merge=self.merge_arms)
+        n = int(self.get_parameter('parallel_requests').value)
+        self.drive_tx = LatestSender('drive', self.send_drive, workers=n)
+        self.head_tx = LatestSender('head', self.send_head, workers=n)
+        self.arms_tx = LatestSender('arms', self.send_arms, merge=self.merge_arms, workers=n)
 
         self.create_subscription(Twist, 'cmd_vel', self.on_cmd_vel, 10)
         self.create_subscription(Twist, 'misty/head_cmd', self.on_head_cmd, 10)

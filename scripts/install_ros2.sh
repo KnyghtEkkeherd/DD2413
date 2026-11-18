@@ -53,7 +53,8 @@ apt-get install -y \
     ros-${ROS_DISTRO}-foxglove-bridge \
     python3-colcon-common-extensions \
     python3-requests \
-    python3-websocket
+    python3-websocket \
+    python3-opencv
 
 echo
 echo ">>> Done. Next:  source /opt/ros/${ROS_DISTRO}/setup.bash"

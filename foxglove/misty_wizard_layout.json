@@ -414,7 +414,67 @@
       "advancedView": true,
       "value": "{\"data\": \"SAY_TEXT:[neutral] Type what Misty should say here\"}"
     },
-    "Tab!tab46": {
+    "Publish!publish46": {
+      "topicName": "/wizard/event",
+      "datatype": "std_msgs/msg/String",
+      "buttonText": "▶ NAV START",
+      "buttonTooltip": "Send NAV_START",
+      "buttonColor": "#2e9e5b",
+      "advancedView": false,
+      "value": "{\"data\": \"NAV_START\"}"
+    },
+    "Publish!publish47": {
+      "topicName": "/wizard/event",
+      "datatype": "std_msgs/msg/String",
+      "buttonText": "NAV GO (continue)",
+      "buttonTooltip": "Send NAV_GO",
+      "buttonColor": "#3b7dd8",
+      "advancedView": false,
+      "value": "{\"data\": \"NAV_GO\"}"
+    },
+    "Publish!publish48": {
+      "topicName": "/wizard/event",
+      "datatype": "std_msgs/msg/String",
+      "buttonText": "❚❚ NAV PAUSE",
+      "buttonTooltip": "Send NAV_PAUSE",
+      "buttonColor": "#6b6b7b",
+      "advancedView": false,
+      "value": "{\"data\": \"NAV_PAUSE\"}"
+    },
+    "Publish!publish49": {
+      "topicName": "/wizard/event",
+      "datatype": "std_msgs/msg/String",
+      "buttonText": "NAV RESET",
+      "buttonTooltip": "Send NAV_RESET",
+      "buttonColor": "#8a1c1c",
+      "advancedView": false,
+      "value": "{\"data\": \"NAV_RESET\"}"
+    },
+    "3D!3d50": {
+      "foxglovePanelTitle": "SLAM map (markers, path, pose)",
+      "followTf": "map",
+      "topics": {
+        "/slam/landmark_markers": {
+          "visible": true
+        },
+        "/slam/path": {
+          "visible": true
+        },
+        "/slam/pose": {
+          "visible": true
+        },
+        "/misty/depth_scan": {
+          "visible": true
+        },
+        "/sim/world": {
+          "visible": true
+        },
+        "/sim/true_pose": {
+          "visible": true
+        }
+      }
+    },
+    "Tab!tab51": {
       "activeTabIdx": 0,
       "tabs": [
         {
@@ -631,10 +691,34 @@
         {
           "title": "Custom text",
           "layout": "Publish!publish45"
+        },
+        {
+          "title": "Navigation",
+          "layout": {
+            "first": {
+              "first": "Publish!publish46",
+              "second": {
+                "first": "Publish!publish47",
+                "second": {
+                  "first": "Publish!publish48",
+                  "second": "Publish!publish49",
+                  "direction": "row",
+                  "splitPercentage": 50.0
+                },
+                "direction": "row",
+                "splitPercentage": 33.33333333333333
+              },
+              "direction": "row",
+              "splitPercentage": 25.0
+            },
+            "second": "3D!3d50",
+            "direction": "column",
+            "splitPercentage": 18.0
+          }
         }
       ]
     },
-    "Publish!publish47": {
+    "Publish!publish52": {
       "topicName": "/wizard/event",
       "datatype": "std_msgs/msg/String",
       "buttonText": "Next segment ▶",
@@ -643,7 +727,7 @@
       "advancedView": false,
       "value": "{\"data\": \"NEXT_SEGMENT\"}"
     },
-    "Publish!publish48": {
+    "Publish!publish53": {
       "topicName": "/wizard/event",
       "datatype": "std_msgs/msg/String",
       "buttonText": "Look back",
@@ -652,7 +736,7 @@
       "advancedView": false,
       "value": "{\"data\": \"LOOK_BACK\"}"
     },
-    "Publish!publish49": {
+    "Publish!publish54": {
       "topicName": "/wizard/event",
       "datatype": "std_msgs/msg/String",
       "buttonText": "Head centre",
@@ -661,7 +745,7 @@
       "advancedView": false,
       "value": "{\"data\": \"HEAD_CENTER\"}"
     },
-    "Publish!publish50": {
+    "Publish!publish55": {
       "topicName": "/wizard/event",
       "datatype": "std_msgs/msg/String",
       "buttonText": "Route reset",
@@ -670,7 +754,7 @@
       "advancedView": false,
       "value": "{\"data\": \"ROUTE_RESET\"}"
     },
-    "Publish!publish51": {
+    "Publish!publish56": {
       "topicName": "/wizard/event",
       "datatype": "std_msgs/msg/String",
       "buttonText": "◀ Nudge L",
@@ -679,7 +763,7 @@
       "advancedView": false,
       "value": "{\"data\": \"NUDGE_L\"}"
     },
-    "Publish!publish52": {
+    "Publish!publish57": {
       "topicName": "/wizard/event",
       "datatype": "std_msgs/msg/String",
       "buttonText": "▲ Nudge fwd",
@@ -688,7 +772,7 @@
       "advancedView": false,
       "value": "{\"data\": \"NUDGE_FWD\"}"
     },
-    "Publish!publish53": {
+    "Publish!publish58": {
       "topicName": "/wizard/event",
       "datatype": "std_msgs/msg/String",
       "buttonText": "Nudge R ▶",
@@ -697,7 +781,7 @@
       "advancedView": false,
       "value": "{\"data\": \"NUDGE_R\"}"
     },
-    "Publish!publish54": {
+    "Publish!publish59": {
       "topicName": "/wizard/event",
       "datatype": "std_msgs/msg/String",
       "buttonText": "■ STOP all",
@@ -706,7 +790,7 @@
       "advancedView": false,
       "value": "{\"data\": \"STOP\"}"
     },
-    "Publish!publish55": {
+    "Publish!publish60": {
       "topicName": "/wizard/event",
       "datatype": "std_msgs/msg/String",
       "buttonText": "START session",
@@ -715,7 +799,7 @@
       "advancedView": false,
       "value": "{\"data\": \"START\"}"
     },
-    "Publish!publish56": {
+    "Publish!publish61": {
       "topicName": "/wizard/event",
       "datatype": "std_msgs/msg/String",
       "buttonText": "END session",
@@ -724,7 +808,7 @@
       "advancedView": false,
       "value": "{\"data\": \"END\"}"
     },
-    "Publish!publish57": {
+    "Publish!publish62": {
       "topicName": "/wizard/event",
       "datatype": "std_msgs/msg/String",
       "buttonText": "Log touch (sim)",
@@ -733,10 +817,10 @@
       "advancedView": false,
       "value": "{\"data\": \"TOUCH_SIM\"}"
     },
-    "Parameters!parameters58": {
+    "Parameters!parameters63": {
       "title": "Session: set participant_id + condition, then START"
     },
-    "RawMessages!rawmessages59": {
+    "RawMessages!rawmessages64": {
       "foxglovePanelTitle": "Session",
       "topicPath": "/wizard/session.data",
       "diffEnabled": false,
@@ -745,7 +829,7 @@
       "showFullMessageForDiff": false,
       "fontSize": 18
     },
-    "RawMessages!rawmessages60": {
+    "RawMessages!rawmessages65": {
       "foxglovePanelTitle": "Misty said / played",
       "topicPath": "/wizard/said.data",
       "diffEnabled": false,
@@ -754,7 +838,7 @@
       "showFullMessageForDiff": false,
       "fontSize": 16
     },
-    "RawMessages!rawmessages61": {
+    "RawMessages!rawmessages66": {
       "foxglovePanelTitle": "Last action / head touch",
       "topicPath": "/wizard/last.data",
       "diffEnabled": false,
@@ -763,7 +847,7 @@
       "showFullMessageForDiff": false,
       "fontSize": 16
     },
-    "RawMessages!rawmessages62": {
+    "RawMessages!rawmessages67": {
       "foxglovePanelTitle": "Next route segment",
       "topicPath": "/wizard/route.data",
       "diffEnabled": false,
@@ -772,16 +856,25 @@
       "showFullMessageForDiff": false,
       "fontSize": 16
     },
-    "Image!image63": {
+    "RawMessages!rawmessages68": {
+      "foxglovePanelTitle": "Navigation status (fail_trigger: Parameters > /misty_nav)",
+      "topicPath": "/nav/status.data",
+      "diffEnabled": false,
+      "diffMethod": "custom",
+      "diffTopicPath": "",
+      "showFullMessageForDiff": false,
+      "fontSize": 16
+    },
+    "Image!image69": {
       "foxglovePanelTitle": "Misty camera",
       "imageMode": {
         "imageTopic": "/misty/camera/image/compressed"
       }
     },
-    "Teleop!teleop64": {
+    "Teleop!teleop70": {
       "foxglovePanelTitle": "DRIVE (arrows = forward/back/turn)",
       "topic": "/cmd_vel",
-      "publishRate": 5,
+      "publishRate": 10,
       "upButton": {
         "field": "linear-x",
         "value": 1
@@ -799,7 +892,7 @@
         "value": -1
       }
     },
-    "Teleop!teleop65": {
+    "Teleop!teleop71": {
       "foxglovePanelTitle": "HEAD / CAMERA (up/down = tilt, left/right = pan)",
       "topic": "/misty/head_cmd",
       "publishRate": 10,
@@ -828,22 +921,22 @@
   },
   "layout": {
     "first": {
-      "first": "Image!image63",
+      "first": "Image!image69",
       "second": {
         "first": {
-          "first": "Teleop!teleop64",
-          "second": "Teleop!teleop65",
+          "first": "Teleop!teleop70",
+          "second": "Teleop!teleop71",
           "direction": "row",
           "splitPercentage": 50.0
         },
         "second": {
           "first": {
-            "first": "Publish!publish47",
+            "first": "Publish!publish52",
             "second": {
-              "first": "Publish!publish48",
+              "first": "Publish!publish53",
               "second": {
-                "first": "Publish!publish49",
-                "second": "Publish!publish50",
+                "first": "Publish!publish54",
+                "second": "Publish!publish55",
                 "direction": "row",
                 "splitPercentage": 50.0
               },
@@ -854,12 +947,12 @@
             "splitPercentage": 25.0
           },
           "second": {
-            "first": "Publish!publish51",
+            "first": "Publish!publish56",
             "second": {
-              "first": "Publish!publish52",
+              "first": "Publish!publish57",
               "second": {
-                "first": "Publish!publish53",
-                "second": "Publish!publish54",
+                "first": "Publish!publish58",
+                "second": "Publish!publish59",
                 "direction": "row",
                 "splitPercentage": 50.0
               },
@@ -880,20 +973,25 @@
     },
     "second": {
       "first": {
-        "first": "RawMessages!rawmessages59",
+        "first": "RawMessages!rawmessages64",
         "second": {
-          "first": "RawMessages!rawmessages60",
+          "first": "RawMessages!rawmessages65",
           "second": {
-            "first": "RawMessages!rawmessages61",
-            "second": "RawMessages!rawmessages62",
+            "first": "RawMessages!rawmessages66",
+            "second": {
+              "first": "RawMessages!rawmessages67",
+              "second": "RawMessages!rawmessages68",
+              "direction": "column",
+              "splitPercentage": 50.0
+            },
             "direction": "column",
-            "splitPercentage": 50.0
+            "splitPercentage": 33.33333333333333
           },
           "direction": "column",
-          "splitPercentage": 33.33333333333333
+          "splitPercentage": 25.0
         },
         "direction": "column",
-        "splitPercentage": 25.0
+        "splitPercentage": 20.0
       },
       "second": {
         "first": {
@@ -903,20 +1001,20 @@
           "splitPercentage": 50.0
         },
         "second": {
-          "first": "Tab!tab46",
+          "first": "Tab!tab51",
           "second": {
             "first": {
-              "first": "Publish!publish55",
+              "first": "Publish!publish60",
               "second": {
-                "first": "Publish!publish56",
-                "second": "Publish!publish57",
+                "first": "Publish!publish61",
+                "second": "Publish!publish62",
                 "direction": "row",
                 "splitPercentage": 50.0
               },
               "direction": "row",
               "splitPercentage": 33.33333333333333
             },
-            "second": "Parameters!parameters58",
+            "second": "Parameters!parameters63",
             "direction": "row",
             "splitPercentage": 55.00000000000001
           },

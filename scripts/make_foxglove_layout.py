@@ -80,6 +80,13 @@ def main():
     custom = L.button('SAY_TEXT:[neutral] Type what Misty should say here', TEAL,
                       'Say custom text ([voice] text)', editable=True)
     tabs.append({'title': 'Custom text', 'layout': custom})
+    nav_buttons = L.split([L.button('NAV_START', GREEN, '▶ NAV START'), L.button('NAV_GO', BLUE, 'NAV GO (continue)'),
+                           L.button('NAV_PAUSE', GREY, '❚❚ NAV PAUSE'), L.button('NAV_RESET', DARK, 'NAV RESET')], 'row')
+    view3d = L.panel('3D', {'foxglovePanelTitle': 'SLAM map (markers, path, pose)', 'followTf': 'map',
+                            'topics': {t: {'visible': True} for t in
+                                       ('/slam/landmark_markers', '/slam/path', '/slam/pose',
+                                        '/misty/depth_scan', '/sim/world', '/sim/true_pose')}})
+    tabs.append({'title': 'Navigation', 'layout': L.split([nav_buttons, view3d], 'column', [18, 82])})
     tab_panel = L.panel('Tab', {'activeTabIdx': 0, 'tabs': tabs})
 
     motion = [L.button('NEXT_SEGMENT', BLUE, 'Next segment ▶'), L.button('LOOK_BACK', BLUE, 'Look back'),
@@ -92,11 +99,13 @@ def main():
     status = L.split([L.status('/wizard/session', 18, 'Session'),
                       L.status('/wizard/said', 16, 'Misty said / played'),
                       L.status('/wizard/last', 16, 'Last action / head touch'),
-                      L.status('/wizard/route', 16, 'Next route segment')], 'column')
+                      L.status('/wizard/route', 16, 'Next route segment'),
+                      L.status('/nav/status', 16, 'Navigation status (fail_trigger: Parameters > /misty_nav)')],
+                     'column')
     camera = L.panel('Image', {'foxglovePanelTitle': 'Misty camera',
                                'imageMode': {'imageTopic': '/misty/camera/image/compressed'}})
     left = L.split([camera,
-                    L.split([L.teleop('/cmd_vel', 'DRIVE (arrows = forward/back/turn)', 5),
+                    L.split([L.teleop('/cmd_vel', 'DRIVE (arrows = forward/back/turn)', 10),
                              L.teleop('/misty/head_cmd', 'HEAD / CAMERA (up/down = tilt, left/right = pan)', 10)],
                             'row'),
                     L.grid(motion, 4)], 'column', [50, 28, 22])

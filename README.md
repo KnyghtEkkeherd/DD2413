@@ -102,6 +102,21 @@ Speeds, deadzone, speed levels and axis inversion are in `misty_params.yaml`.
 `ros2 run misty_ros keyboard_teleop`: W/S forward/back, A/D turn, Q/E arcs,
 I/K/J/L or arrow keys for the head, C head centre, Space STOP, Z/X speed.
 
+### Camera and latency
+
+The camera node uses Misty's **video stream** by default (`misty_camera` →
+`mode: stream` in `misty_params.yaml`): ~15-20 fps instead of ~2 fps with
+single photos, and it falls back to photos automatically if the stream isn't
+available. `mode: rtsp` uses Misty's AV stream (H.264, highest frame rate) but
+**disables Misty's camera service**, so on-board ArUco detection stops: set
+`misty_sensors` → `aruco_source: opencv` with it. `rotate_deg` fixes a rotated
+image.
+
+Motor commands: drive, head and arms each have their own sender that always
+sends the newest command, over kept-open connections, with up to
+`parallel_requests` (default 2) in flight; the last command is re-sent once so
+Misty always ends in the latest state. The Foxglove DRIVE panel sends at 10 Hz.
+
 ### Config and logs
 
 **What Misty says and how: `src/misty_ros/config/reactions.json`** (plug and
@@ -143,3 +158,75 @@ sequence), `sensor` (head touch) or `auto`.
 
 Dry run without the robot: `python3 scripts/fake_misty.py`, then launch with
 `misty_ip:=127.0.0.1:8099` (no touch sensor: use **Log touch (sim)**).
+
+## Autonomous marker navigation (EKF-SLAM)
+
+```bash
+ros2 launch misty_ros wizard.launch.py misty_ip:=<MISTY_IP> nav:=true      # real robot
+ros2 launch misty_ros nav.launch.py sim:=true                              # simulator only
+```
+
+Misty drives to the ArUco markers in `mission` (in `misty_params.yaml`,
+section `misty_nav`), in order, avoiding obstacles. The marker's role decides
+what happens on arrival:
+
+| Role | Default ids | On arrival |
+|------|-------------|------------|
+| start | 1 | greeting (`start_reaction`), then waits for **NAV GO** |
+| fail | 2 | only if `fail_trigger` is true: failure (`fail_reaction`), waits for **NAV GO** |
+| goal | 3 | arrival (`goal_reaction`), mission done |
+| other ids in `mission` | | waypoint, drives on |
+
+The wizard sets `fail_trigger` at runtime in Foxglove's Parameters panel
+(`/misty_nav` → `fail_trigger`), or `ros2 param set /misty_nav fail_trigger true`.
+Foxglove **Navigation** tab: NAV START, NAV GO, NAV PAUSE, NAV RESET and a 3D
+view of the SLAM map; **■ STOP all** / controller **B** also pause navigation.
+
+How it works:
+- `misty_sensors`: Misty's wheel encoders, IMU, time-of-flight sensors and
+  on-board ArUco detector → ROS (`aruco_source: opencv` detects markers in the
+  VM from the camera images instead; optional depth-camera obstacle scan).
+- `misty_slam`: EKF-SLAM. Wheel dead reckoning (+ IMU heading) predicts the
+  motion; each ArUco sighting (range + bearing) corrects the pose and maps the
+  marker. Optional fixed marker positions: `known_markers`.
+- `misty_nav`: steers to the live detection, else to the SLAM map estimate
+  (turning towards it), else searches by turning in steps; after a full circle
+  without seeing it, moves to a new viewpoint and looks again. Front ToF
+  sensors (and depth scan): slow down, stop, steer round obstacles.
+- `nav_sim` (`sim:=true`): simulated Misty with noisy sensors, obstacles and
+  markers visible only from the front, for testing without the robot.
+
+### Gazebo simulation
+
+Tests the whole chain (rendered camera → OpenCV ArUco detection → EKF-SLAM →
+navigation, plus ToF and depth obstacle sensing) without the robot. Install
+once: `sudo apt install ros-lyrical-ros-gz`.
+
+```bash
+ros2 launch misty_ros gazebo.launch.py              # headless; Foxglove on ws://<vm-ip>:8765
+ros2 launch misty_ros gazebo.launch.py gui:=true    # with the Gazebo window (needs a desktop)
+ros2 launch misty_ros gazebo.launch.py render_engine:=ogre depth:=false   # lighter, for a slow VM
+```
+
+- World: `misty_gz` → `world` in `misty_params.yaml` (markers, obstacles,
+  walls; same format as `nav_sim`). Marker size and dictionary come from
+  `misty_sensors`, so the simulated markers match the printed ones.
+- `gz_adapter` stands in for Misty: it turns `/cmd_vel` into wheel speeds
+  (same scaling and drive timeout as `misty_teleop`) and Gazebo's sensors into
+  the real topics (`/misty/encoders`, `/misty/imu`, `/misty/tof`,
+  `/misty/markers`, `/misty/depth_scan`, `/misty/camera/image/compressed`).
+- `/sim/true_pose` is the true pose: compare it with `/slam/pose` in Foxglove's
+  3D panel. `/sim/world` draws the markers and obstacles.
+- Drive by hand with the Foxglove DRIVE panel, the controller or
+  `keyboard_teleop`, or run the mission with NAV START / NAV GO.
+
+Markers: `python3 scripts/make_aruco_markers.py` writes printable PNGs for the
+mission ids (dictionary and size from `misty_sensors`); print at the width it
+reports and set `marker_size_m` to the measured black square.
+
+Keep the head centred while navigating (the camera bearing assumes it).
+
+**First run on the robot, check:** `ros2 topic echo /misty/markers` shows
+detections (else `aruco_source: opencv`); turning left increases the SLAM
+heading (else `imu_yaw_sign: -1.0`); `ros2 topic echo /misty/tof` shows the
+front sensors; drive 1 m and compare `/slam/odom_pose` (else `encoder_scale`).
