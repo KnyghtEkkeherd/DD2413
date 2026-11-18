@@ -4,11 +4,13 @@ Receives controller state as JSON over UDP from scripts/gamepad_sender.py
 (running on the computer the controller is plugged into) and publishes the
 same topics as the Foxglove Teleop panels:
 
-    left stick    drive    -> /cmd_vel          (up = forward, left = turn left)
+    left stick    drive    -> /teleop/gamepad   (up = forward, left = turn left); overrides Nav2 (twist_mux)
     right stick   head     -> /misty/head_cmd   (up = tilt up, left = pan left);
                                                  speed scales with stick deflection
-    B             STOP driving, speech, sounds  -> /wizard/event STOP
+    B             STOP: wheels, speech, sounds; pauses the study + Nav2 -> /wizard/event STOP
                   (driving stays off until the left stick is released)
+    START         RESUME the study + Nav2 after STOP  -> /wizard/event RESUME
+    X             look back at the participant     -> /wizard/event LOOK_BACK
     A / Y         head centre                   -> /misty/head_goal (0, 0, 0)
     RT / LT       right / left arm: released = down, fully pressed = up,
                   in between = in between       -> /misty/arms_cmd
@@ -55,7 +57,7 @@ class GamepadTeleop(Node):
         self.declare_parameter('arm_down_deg', 90.0)       # arm angle with the trigger released
         self.declare_parameter('arm_up_deg', -29.0)        # arm angle with the trigger fully pressed
         self.declare_parameter('arm_min_change_deg', 3.0)  # only send when an arm moves this much
-        self.cmd = self.create_publisher(Twist, 'cmd_vel', 10)
+        self.cmd = self.create_publisher(Twist, 'teleop/gamepad', 10)   # -> teleop_relay -> twist_mux
         self.head = self.create_publisher(Twist, 'misty/head_cmd', 10)
         self.joy = self.create_publisher(Joy, 'joy', 10)
         self.wizard = self.create_publisher(String, 'wizard/event', 10)
@@ -120,6 +122,12 @@ class GamepadTeleop(Node):
             self.latched = True
             self.wizard.publish(String(data='STOP'))
             self.get_logger().info('B: STOP')
+        if pressed('start'):
+            self.wizard.publish(String(data='RESUME'))
+            self.get_logger().info('START: RESUME study + Nav2')
+        if pressed('x'):
+            self.wizard.publish(String(data='LOOK_BACK'))
+            self.get_logger().info('X: look back')
         if pressed('a') or pressed('y'):
             self.head_goal.publish(Vector3(x=0.0, y=0.0, z=0.0))
             self.get_logger().info('Head centre')

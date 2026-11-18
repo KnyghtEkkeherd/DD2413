@@ -13,3 +13,6 @@ sessions/
 
 # generated printable markers
 markers/
+
+# Nav2 stack: sources built by scripts/install_nav2.sh
+src/third_party/

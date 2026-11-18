@@ -4,7 +4,7 @@
 
 Publishes the same topics as the Foxglove Teleop panels, so it needs the
 teleop node running (wizard.launch.py / misty_foxglove.launch.py):
-    /cmd_vel          geometry_msgs/Twist   driving
+    /teleop/keyboard  geometry_msgs/Twist   driving (teleop units -> teleop_relay -> twist_mux)
     /misty/head_cmd   geometry_msgs/Twist   head tilt / pan
     /wizard/event     std_msgs/String       HEAD_CENTER, STOP (needs the wizard node)
 
@@ -57,7 +57,7 @@ class KeyboardTeleop(Node):
         self.declare_parameter('hold_s', 0.5)    # keep moving this long after the last key repeat
         self.declare_parameter('speed_levels', [0.5, 0.75, 1.0, 1.5, 2.0, 3.0])  # Z / X
         self.declare_parameter('start_speed_level', 2)
-        self.cmd = self.create_publisher(Twist, 'cmd_vel', 10)
+        self.cmd = self.create_publisher(Twist, 'teleop/keyboard', 10)   # -> teleop_relay -> twist_mux
         self.head = self.create_publisher(Twist, 'misty/head_cmd', 10)
         self.wizard = self.create_publisher(String, 'wizard/event', 10)
         self.speeds = [float(v) for v in self.get_parameter('speed_levels').value]

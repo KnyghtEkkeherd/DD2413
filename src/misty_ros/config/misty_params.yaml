@@ -1,3 +1,21 @@
+# Shared by several nodes.
+# marker_map: MEASURED marker positions in the room, metres: {"id": [x, y, facing_deg]}.
+#   Pick an origin and an x direction on the floor (e.g. Misty's start spot, facing +x);
+#   y is to the left of x. facing_deg = direction the printed side faces (0 = towards +x,
+#   90 = towards +y, 180 = towards -x). Optional 4th value: marker centre height (default 0.30).
+#   Misty's start pose doesn't need to be known: the first marker she sees localizes her.
+/**:
+  ros__parameters:
+    marker_map: '{"1": [1.2, 0.0, 180], "2": [3.5, 1.5, 180], "3": [1.5, -2.0, 90]}'
+    # Driving speeds (teleop_relay, teleop_node, simulators).
+    # Manual driving (Foxglove DRIVE, controller, keyboard): input 1.0 = this % of top speed
+    linear_scale: 30.0
+    angular_scale: 70.0
+    # Misty's top speed (100 %): converts m/s <-> Misty's %. CALIBRATE: drive at 100 % for
+    # 2 s and measure the distance / turn; Nav2's speeds are only as right as these numbers.
+    max_linear_mps: 0.6
+    max_angular_dps: 120.0
+
 # Misty settings: teleop / controller gains, camera.
 # (What Misty says and how - pitch, rate, voice - is in reactions.json.)
 #
@@ -7,8 +25,6 @@
 misty_teleop:
   ros__parameters:
     # Twist from Foxglove / keyboard / controller -> Misty, in % of max speed
-    linear_scale: 30.0      # forward speed at full stick / key
-    angular_scale: 70.0     # turn speed at full stick / key
     drive_time_ms: 600      # each drive command lasts this long (safety stop)
     head_step_deg: 13.0     # head move per head message (Foxglove/keyboard: 10 msg/s)
     head_velocity: 100.0    # head motor speed, % of max
@@ -115,8 +131,18 @@ misty_slam:
     # y left), JSON. Empty = learn all markers by SLAM.
     known_markers: "{}"     # e.g. '{"1": [1.2, 0.0], "3": [1.5, -2.0]}'
 
+misty_wheel_odom:
+  ros__parameters:
+    wheel_base_m: 0.11      # track separation (calibrate: turn 360 deg in place, compare encoders)
+
+misty_marker_localizer:
+  ros__parameters:
+    heading_max_range_m: 2.0  # trust a marker's orientation only closer than this
+    max_range_m: 3.5
+
 misty_sensors:
   ros__parameters:
+    imu_yaw_sign: 1.0       # -1 if Misty's yaw grows clockwise (check: turn left, yaw must grow)
     aruco_source: robot     # robot = Misty's on-board detector; opencv = detect
                             # on /misty/camera/image/compressed in the VM
     aruco_dictionary: 0     # OpenCV dictionary id: 0 = DICT_4X4_50, 4 = 5X5_50, 8 = 6X6_50

@@ -1,30 +1,29 @@
-"""Wizard-of-Oz reaction menu for Misty, driven from Foxglove.
+"""Wizard-of-Oz actions for Misty, driven from Foxglove and the study state machine.
 
-There is no state machine: the wizard picks every reaction. Foxglove buttons
-publish std_msgs/String on /wizard/event:
+The wizard (Foxglove buttons) and study_node send std_msgs/String on /wizard/event:
 
-  Session   START / END              open / close the CSV log (participant_id
-                                     and condition parameters are read at START)
-  Reactions REACT:<id>               a reaction from config/reactions.json: a random
-                                     sentence (with its voice settings), a random
-                                     sound, or a sequence of steps (e.g. FAILURE)
-            REACT:<id>:<n>           sentence number n (0-based) of that reaction
-            SAY_TEXT:[voice] <text>  any text; optional [preset] and/or [pitch=1.4 rate=0.8 ...]
-            PLAY:<file.wav>          any Misty audio file
-            STOP_TALKING             cut off speech, sounds and a running sequence
-            (SAY:<id> and FAILURE are kept as aliases of REACT:<id> / REACT:FAILURE)
-  reactions.json is re-read whenever it changes: no restart needed.
-  Motion    NEXT_SEGMENT / ROUTE_RESET   route segments from study.yaml
-            LOOK_BACK / HEAD_CENTER      head turns back (+ a line) / straight
-            NUDGE_L / NUDGE_R / NUDGE_FWD
-            STOP                     stop driving, speech, sounds and sequences
+  Session   START / END              open / close the CSV log (participant_id and
+                                     condition parameters are read at START)
+  Speech    REACT:<id>[:<n>]         a reaction from config/reactions.json: random (or
+                                     n-th) sentence with its voice, a sound, or a sequence
+            STUDY_SAY:<id>           same, then /wizard/done = <id> when it has finished
+            SAY_TEXT:[voice] <text>  any text; PLAY:<file.wav> any audio file
+            STOP_TALKING             cut off speech, sounds, sequences and gestures
+  Emotion   EMOTION:<name>           face image, LEDs, optional arms / head / sound
+                                     (emotions in config/study.yaml)
+  Hands     GESTURE:<name>           arm sequence (gestures in config/study.yaml)
+  Head      LOOK_BACK / HEAD_CENTER  head turns back (+ a line) / straight
+  Study     YES, NO, DISTRACTED, DIR_OK, DIR_WRONG, RECOVER, CONTINUE, STATE:<name>,
+            PAUSE, RESUME: handled by study_node, logged here
+            STUDY_STATE:<from>><to>  state change (from study_node), logged
+            STOP                     stop speech, sounds, sequences, gestures and the wheels
             TOUCH_SIM                log a head touch by hand
-  Free driving and head aiming: Foxglove Teleop panels (teleop_node).
-  Emotions (mood, face, LEDs, gestures): the Misty phone app.
+  Driving is NOT done here: the wizard drives with the controller / Foxglove DRIVE
+  panel through twist_mux, which overrides Nav2.
 
-Status (latched, for Foxglove panels): /wizard/session, /wizard/said,
-/wizard/last (last action, head touches), /wizard/route (next segment).
-Head touches from Misty's sensors are logged automatically.
+Status (latched): /wizard/session, /wizard/said, /wizard/last, /wizard/condition
+(condition while a session runs, '' otherwise); /wizard/done (speech finished),
+/wizard/touch (head touches, from Misty's sensors or TOUCH_SIM).
 """
 import csv
 import json
@@ -52,6 +51,8 @@ except ImportError:  # touch sensing + exact speech timing need python3-websocke
     websocket = None
 
 CONDITIONS = ('CONTROL', 'BREAKDOWN')
+LED_PATTERNS = {'breathe': 'Breathe', 'blink': 'Blink', 'transitonce': 'TransitOnce'}
+STUDY_EVENTS = {'YES', 'NO', 'DISTRACTED', 'DIR_OK', 'DIR_WRONG', 'RECOVER', 'CONTINUE', 'STATE', 'PAUSE', 'RESUME'}
 CSV_FIELDS = ['timestamp', 'participant_id', 'condition', 'event_source', 'event',
               'utterance_variant_index', 'detail']
 
@@ -87,18 +88,21 @@ class MistyWizard(Node):
         self.csv_file = self.csv = None
         self.log_lock = threading.Lock()
         self.last_variant = {}
-        self.seg_i = 0
         self.sequence = None                  # running sequence (e.g. FAILURE) thread
         self.cancel = threading.Event()       # cancels the running sequence
 
         latched = QoSProfile(depth=1, durability=DurabilityPolicy.TRANSIENT_LOCAL)
         self.pub = {n: self.create_publisher(String, f'wizard/{n}', latched)
-                    for n in ('session', 'said', 'last', 'route')}
+                    for n in ('session', 'said', 'last', 'condition')}
+        self.done_pub = self.create_publisher(String, 'wizard/done', 10)
+        self.touch_pub = self.create_publisher(String, 'wizard/touch', 10)
         self.head_pub = self.create_publisher(Vector3, 'misty/head_position', 10)
+        self.head_goal_pub = self.create_publisher(Vector3, 'misty/head_goal', 10)
+        self.arms_pub = self.create_publisher(Vector3, 'misty/arms_cmd', 10)
         self.create_subscription(String, 'wizard/event', self.on_wizard_msg, 10)
 
         self.publish_session()
-        self.publish_route()
+        self.publish('condition', '')
         self.note('Ready. Set participant_id + condition, press START.')
         self.worker = threading.Thread(target=self.run, daemon=True)
         self.worker.start()
@@ -211,18 +215,6 @@ class MistyWizard(Node):
             self.publish('session', f'REC  {self.participant} ({self.condition})')
         else:
             self.publish('session', 'Not recording: set participant_id + condition, press START')
-
-    def publish_route(self):
-        segs = self.cfg.get('route') or []
-        if self.seg_i < len(segs):
-            seg = segs[self.seg_i]
-            if 'forward' in seg:
-                what = f"forward {seg['forward']['velocity']}% {seg['forward']['time_ms']} ms"
-            else:
-                what = f"turn {seg['turn']['degrees']} deg"
-            self.publish('route', f'Next segment {self.seg_i + 1}/{len(segs)}: {what}')
-        else:
-            self.publish('route', f'Route done ({len(segs)} segments). Route reset to start over.')
 
     def log(self, source, event, variant='', detail=''):
         self.get_logger().info(f'{source}:{event} {variant} {detail}'.rstrip())
@@ -355,10 +347,6 @@ class MistyWizard(Node):
         else:
             self.log('auto', 'PLAY_FAILED', detail=filename)
 
-    def drive(self, label, **kw):
-        if self.call('drive', self.misty.drive_time, **kw):
-            self.note(label)
-
     def head(self, yaw):
         lb = self.cfg['look_back']
         self.call('move_head', self.misty.move_head, pitch=0.0, roll=0.0, yaw=float(yaw),
@@ -430,8 +418,6 @@ class MistyWizard(Node):
         except Exception as e:
             self.note(f'Cannot START: study.yaml error: {e}')
             return
-        self.seg_i = 0
-        self.publish_route()
         out = Path(self.get_parameter('session_dir').value).expanduser()
         out.mkdir(parents=True, exist_ok=True)
         path = out / f'{pid}_{cond}_{datetime.now():%Y%m%d_%H%M%S}.csv'
@@ -442,6 +428,7 @@ class MistyWizard(Node):
             self.csv.writeheader()
         self.log('wizard', 'SESSION_START', detail=str(path))
         self.publish_session()
+        self.publish('condition', cond)            # study_node starts on this
         self.note(f'Recording {pid} ({cond})')
 
     def end_session(self):
@@ -451,6 +438,7 @@ class MistyWizard(Node):
         self.cancel.set()
         self.call('stop', self.misty.stop)
         self.log('wizard', 'SESSION_END')
+        self.publish('condition', '')
         with self.log_lock:
             self.csv_file.close()
             self.csv_file = self.csv = None
@@ -464,6 +452,18 @@ class MistyWizard(Node):
             detail = arg or ('TOUCH_SIM' if name == 'TOUCH_SIM' else '')
             self.log(source, 'TOUCH', detail=detail)
             self.note(f'Head touched ({detail})')
+            self.touch_pub.publish(String(data=detail))
+        elif name == 'STUDY_SAY':
+            threading.Thread(target=self.study_say, args=(arg.strip(),), daemon=True).start()
+        elif name == 'EMOTION':
+            self.emotion(arg.strip().upper())
+        elif name == 'GESTURE':
+            self.gesture(arg.strip().upper())
+        elif name == 'STUDY_STATE':
+            self.log('study', 'STATE', detail=arg)
+            self.note(f'Study state: {arg}')
+        elif name in STUDY_EVENTS or name.startswith('NAV'):
+            self.log(source, name, detail=arg)        # handled by study_node / mission
         elif name == 'START':
             self.start_session()
         elif name == 'END':
@@ -501,14 +501,7 @@ class MistyWizard(Node):
         elif name == 'STOP':
             self.stop_everything('STOP')
             self.call('stop', self.misty.stop)
-            self.note('STOPPED driving, speech and sounds')
-        elif name == 'NEXT_SEGMENT':
-            self.next_segment()
-        elif name == 'ROUTE_RESET':
-            self.seg_i = 0
-            self.log('wizard', name)
-            self.publish_route()
-            self.note('Route reset to segment 1')
+            self.note('STOPPED: wheels, speech, sounds, gestures; study + Nav2 paused (RESUME to go on)')
         elif name == 'LOOK_BACK':
             self.log('wizard', name)
             self.head(self.cfg['look_back']['head_yaw_deg'])
@@ -523,42 +516,84 @@ class MistyWizard(Node):
             self.log('wizard', name)
             self.head(0)
             self.note('Head centred')
-        elif name in ('NUDGE_L', 'NUDGE_R', 'NUDGE_FWD'):
-            self.nudge(name)
         else:
             self.get_logger().warning(f'Unknown wizard event "{name}"')
             self.note(f'Unknown button "{name}"')
 
-    def next_segment(self):
-        segs = self.cfg.get('route') or []
-        if self.seg_i >= len(segs):
-            self.note('Route already finished: press Route reset')
-            return
-        seg = segs[self.seg_i]
-        self.log('wizard', 'NEXT_SEGMENT', detail=f'segment {self.seg_i}: {seg}')
-        if 'forward' in seg:
-            f = seg['forward']
-            self.drive(f'Segment {self.seg_i + 1}: forward', linearVelocity=float(f['velocity']),
-                       angularVelocity=0.0, timeMs=int(f['time_ms']))
-        elif 'turn' in seg:
-            t = seg['turn']
-            deg = float(t['degrees'])
-            vel = abs(float(t.get('velocity', 30))) * (1 if deg >= 0 else -1)
-            self.drive(f'Segment {self.seg_i + 1}: turn {deg:g} deg', linearVelocity=0.0,
-                       angularVelocity=vel, timeMs=int(t['time_ms']), degree=deg)
-        self.seg_i += 1
-        self.publish_route()
+    # ---------------------------------------------------- study helpers
+    def study_say(self, rid):
+        """Speak / play a reaction for the study and report when it's done (/wizard/done)."""
+        self.load_reactions()
+        r = self.reactions.get(rid)
+        self.cancel.clear()               # a new study step: an earlier STOP mustn't cut it short
+        try:
+            if r is None:
+                self.note(f'Unknown reaction "{rid}" (not in reactions.json)')
+            elif r.get('steps'):
+                self.run_sequence(rid)
+            elif r.get('sentences'):
+                self.say_reaction(rid, source='study', wait=True)
+            elif r.get('sounds'):
+                self.sound_reaction(rid, source='study')
+                self.sleep(float(r.get('wait', 2.0)))
+        except Cancelled:
+            pass
+        except Exception as e:
+            self.get_logger().error(f'study_say {rid}: {e!r}')
+        self.done_pub.publish(String(data=rid))
 
-    def nudge(self, name):
-        n = self.cfg['nudge']
-        self.log('wizard', name)
-        if name == 'NUDGE_FWD':
-            self.drive('Nudge forward', linearVelocity=float(n['forward_velocity']),
-                       angularVelocity=0.0, timeMs=int(n['forward_ms']))
-        else:
-            sign = 1.0 if name == 'NUDGE_L' else -1.0  # + = left (counter-clockwise)
-            self.drive(f'Nudge {"left" if sign > 0 else "right"}', linearVelocity=0.0,
-                       angularVelocity=sign * float(n['turn_velocity']), timeMs=int(n['turn_ms']))
+    def emotion(self, name):
+        e = (self.cfg.get('emotions') or {}).get(name)
+        if e is None:
+            self.note(f'Unknown emotion "{name}" (emotions in study.yaml)')
+            return
+        self.log('wizard', f'EMOTION_{name}')
+        if e.get('face'):
+            self.call('display_image', self.misty.display_image, fileName=e['face'], alpha=1.0)
+        if e.get('led'):
+            r, g, b = (int(v) for v in e['led'])
+            if e.get('led2') and e.get('pattern'):
+                r2, g2, b2 = (int(v) for v in e['led2'])
+                self.call('transition_led', self.misty.transition_led, red=r, green=g, blue=b, red2=r2,
+                          green2=g2, blue2=b2, transitionType=LED_PATTERNS.get(str(e['pattern']).lower(), 'Breathe'),
+                          timeMs=int(e.get('led_ms', 800)))
+            else:
+                self.call('change_led', self.misty.change_led, red=r, green=g, blue=b)
+        if e.get('arms'):
+            self.arms(*e['arms'])
+        if e.get('head'):
+            self.head_goal(*e['head'])
+        if e.get('sound'):
+            self.load_reactions()
+            self.sound_reaction(e['sound'])
+        self.note(f'Emotion {name}')
+
+    def arms(self, left, right):
+        nan = float('nan')
+        self.arms_pub.publish(Vector3(x=nan if left is None else float(left),
+                                      y=nan if right is None else float(right), z=0.0))
+
+    def head_goal(self, pitch, yaw):
+        self.head_goal_pub.publish(Vector3(x=float(pitch), y=0.0, z=float(yaw)))
+
+    def gesture(self, name):
+        steps = (self.cfg.get('gestures') or {}).get(name)
+        if not steps:
+            self.note(f'Unknown gesture "{name}" (gestures in study.yaml)')
+            return
+        self.log('wizard', f'GESTURE_{name}')
+
+        def run():
+            try:
+                for st in steps:
+                    if st.get('arms'):
+                        self.arms(*st['arms'])
+                    self.sleep(float(st.get('wait', 0.5)))
+            except Cancelled:
+                pass
+        self.cancel.clear()
+        threading.Thread(target=run, daemon=True).start()
+        self.note(f'Gesture {name}')
 
     def run(self):
         while not self.stop_flag.is_set():

@@ -47,29 +47,71 @@ Driving uses `drive_time`, so Misty stops on its own ~0.6 s after the last
 command — releasing the button or losing the connection stops the robot.
 Speed: `linear_scale:=30` means a Teleop value of 1.0 = 30 % of max speed.
 
-## Wizard-of-Oz study: reaction menu
+## Running the study (one launch)
+
+```bash
+ros2 launch misty_ros study.launch.py misty_ip:=<MISTY_IP> participant_id:=P01 condition:=BREAKDOWN
+ros2 launch misty_ros study.launch.py sim:=2d      # dry run: 2D simulator + fake Misty, no robot
+```
+
+Starts everything: camera, teleop, Xbox controller, twist_mux, foxglove_bridge,
+the wizard (speech, emotions, gestures, session log), the **study state
+machine** and **Nav2 navigation**. Needs `bash scripts/install_nav2.sh` once.
+In Foxglove: **Layouts → Import from file… → `foxglove/misty_wizard_layout.json`**
+(don't drag the file in: that opens it as data and fails).
+
+**Who does what**
+
+| | |
+|---|---|
+| Study state machine (`config/study.yaml`, from the study plan) | drives the session: APPROACH (Nav2 to marker 1) → GREETING → CONSENT (YES / NO, nudges) → ESCORT_A (Nav2 to marker 2, automatic look-backs) → HALF_PAUSE → CONTROL: CHECK_ROUTE / BREAKDOWN: CONFUSION → FRUSTRATION → LOST_APPEAL → HELP_WAIT → RECOVERY → ESCORT_B (Nav2 to marker 3) → ARRIVE → END. Each state sets Misty's emotion and says its line; transitions on arrival, speech finished, timeouts, head touch and wizard answers |
+| Wizard (Foxglove / controller) | answers (**YES, NO, Direction OK / wrong, RECOVER, Distracted**), **emotions** and **hand gestures** (any time), and the **state buttons**: jump to any state, back or forward (logged) |
+| Driving | Nav2 between markers. The wizard can take over any time: Foxglove DRIVE panel or controller left stick **override Nav2** (twist_mux) |
+| **■ STOP all** / controller B | stops speech + wheels and **pauses** the study and Nav2 (timers freeze); the wizard can still drive by hand. **▶ RESUME** / controller START continues |
+
+The condition (from `condition` / the Parameters panel at START) picks the
+branch at the halfway marker. Everything is logged in the session CSV:
+state changes (`STATE`, with the reason), wizard buttons, emotions, gestures,
+every sentence with its variant index, head touches.
+
+**Edit without rebuilding** (applies at the next START): `src/misty_ros/config/study.yaml`
+(states, transitions, timings, emotions = face image + LEDs + arms, gestures) and
+`reactions.json` (what Misty says). After adding states / emotions / gestures,
+re-run `python3 scripts/make_foxglove_layout.py` and re-import the layout.
+
+### Motor control: twist_mux
+
+Every driving source publishes to its own twist_mux input (`config/twist_mux.yaml`);
+only the winner reaches Misty (`/misty/cmd_vel` → teleop_node):
+
+| Input | Priority |
+|---|---|
+| Foxglove DRIVE panel, Xbox controller | 100 (always wins) |
+| keyboard_teleop | 90 |
+| study node | 50 |
+| Nav2 | 10 |
+| lock `/wizard/estop` (STOP) | blocks everything below 95 |
+| lock `/study/hold_nav` (states that don't drive, look-backs) | blocks Nav2 |
+
+Speeds: `/**` in `misty_params.yaml` (`linear_scale`, `angular_scale` for
+manual driving; `max_linear_mps`, `max_angular_dps` = Misty at 100 %, calibrate).
+
+## Wizard menu only (no state machine)
 
 ```bash
 ros2 launch misty_ros wizard.launch.py misty_ip:=<MISTY_IP> participant_id:=P01 condition:=BREAKDOWN
 ```
 
-Starts the camera, teleop, foxglove_bridge and the wizard menu. In Foxglove:
-**Layouts → Import from file… → `foxglove/misty_wizard_layout.json`**
-(don't drag the file in: that opens it as data and fails).
-
-There is no state machine: the wizard chooses every reaction. Emotions
-(mood, face, LEDs, gestures) are done in the **Misty phone app**.
+Camera, teleop, controller, foxglove_bridge and the wizard, without the study
+node (add `nav:=true` for Nav2). The wizard chooses every reaction.
 
 | Area | What it does |
 |------|--------------|
 | ⚠ **FAILURE** | One press: "I'm lost" → random sad sound → "Can you help me?" (a sequence in `reactions.json`). **Stop talking / cancel** or **■ STOP all** cancels it |
 | Reaction tabs | One tab per `group` in `reactions.json` (Escort, Breakdown, Responses, Sounds…): each button says a random sentence of that reaction in its voice (index logged), or plays a sound. **Custom text** tab: edit the text, optional voice prefix like `[sad] …`, then press |
-| DRIVE / HEAD | Teleop panels: drive (`/cmd_vel`), head/camera tilt + pan (`/misty/head_cmd`). Head moves 13° per message at 10 Hz while held (~130°/s); tune in `misty_params.yaml` |
-| Route + motion | **Next segment ▶** (next segment from `route` in `study.yaml`), Look back, Head centre, Route reset, Nudge L / fwd / R, **■ STOP all** |
+| Emotions & hands | Emotion presets (face + LEDs + arms) and arm gestures from `study.yaml` |
+| DRIVE / HEAD | Teleop panels: drive (`/cmd_vel`, via twist_mux), head/camera tilt + pan (`/misty/head_cmd`) |
 | Session | Set `participant_id` + `condition` in the Parameters panel, **START session** … **END session** |
-
-Status lines: Session (recording?), Misty said / played, Last action / head
-touch, Next route segment.
 
 ### Xbox controller
 
@@ -89,7 +131,9 @@ Each session (on the Mac): `~/misty_pad/bin/python ~/gamepad_sender.py 192.168.6
 |---------|--------|
 | Left stick | drive (up = forward, sideways = turn) |
 | Right stick | head / camera (up/down = tilt, left/right = pan; speed follows deflection) |
-| B | STOP driving, speech, sounds (driving stays off until the left stick is released) |
+| B | STOP: wheels, speech, sounds; pauses the study + Nav2 (driving stays off until the left stick is released) |
+| START | RESUME the study + Nav2 after a STOP |
+| X | Look back at the participant |
 | A or Y | head centre |
 | RT / LT | right / left arm: released = down, fully pressed = up, in between = in between (angles in `misty_params.yaml`: `arm_down_deg`, `arm_up_deg`) |
 | LB / RB | slower / faster driving |
@@ -159,7 +203,63 @@ sequence), `sensor` (head touch) or `auto`.
 Dry run without the robot: `python3 scripts/fake_misty.py`, then launch with
 `misty_ip:=127.0.0.1:8099` (no touch sensor: use **Log touch (sim)**).
 
-## Autonomous marker navigation (EKF-SLAM)
+## Autonomous navigation with Nav2 (default)
+
+Built from standard ROS 2 packages: **Nav2** (planning, Regulated Pure Pursuit
+path following, recoveries, collision monitor), **robot_localization** (EKF),
+**aruco_opencv** (marker detection), **depthimage_to_laserscan**. Install once
+(sudo; apt packages + builds cv_bridge and aruco_opencv from source, because
+their apt builds need Ubuntu 26.04's Boost):
+
+```bash
+bash scripts/install_nav2.sh
+```
+
+```bash
+ros2 launch misty_ros wizard.launch.py misty_ip:=<MISTY_IP> nav:=true   # real robot
+ros2 launch misty_ros nav2.launch.py sim:=2d                            # 2D simulator, no robot
+```
+
+Options for `wizard.launch.py`: `markers:=json` uses Misty's on-board ArUco
+detector instead of aruco_opencv on the camera stream; `depth:=true` adds the
+depth camera as a laser scan; `nav_stack:=custom` runs the older custom stack
+(below) instead.
+
+**Before the first real run:**
+1. Measure the markers: `marker_map` at the top of `misty_params.yaml`,
+   `{"id": [x, y, facing_deg]}` in metres. Choose any origin and x direction
+   on the floor; `facing_deg` is where the printed side faces. Misty's start
+   pose doesn't matter: the first marker she sees localizes her.
+2. Calibrate speeds (`misty_teleop`: `max_linear_mps`, `max_angular_dps`):
+   drive at 100 % for 2 s, measure. Nav2 commands real m/s; these convert them.
+3. Check `imu_yaw_sign` (`misty_sensors`): turning left must increase yaw.
+4. Measure the camera position on your Misty and fix `camera_joint` in
+   `urdf/misty.urdf` if needed; keep the head centred while navigating.
+
+The route, roles and Foxglove buttons are unchanged: `mission`,
+`start_markers` / `fail_markers` / `goal_markers`, `fail_trigger`, NAV START /
+NAV GO / NAV PAUSE / NAV RESET. Each target becomes a Nav2 goal `standoff_m`
+in front of its marker, facing it. Until a marker has been seen, Misty turns on
+the spot to find one.
+
+How the pieces connect:
+
+| Node | Package | Does |
+|---|---|---|
+| `misty_sensors`, `misty_camera`, `misty_teleop` | misty_ros | Misty's HTTP / websocket API ↔ ROS (no open-source Misty driver exists) |
+| `robot_state_publisher` | standard | `urdf/misty.urdf`: camera, ToF, depth frames |
+| `misty_wheel_odom` | misty_ros | encoders → `nav_msgs/Odometry` |
+| `ekf_odom`, `ekf_map` | robot_localization | odom + IMU → `odom→base_link`; + marker fixes → `map→odom` (`config/localization.yaml`) |
+| `aruco_tracker` | aruco_opencv | marker poses from the camera stream |
+| `misty_marker_localizer` | misty_ros | marker pose + `marker_map` → robot pose fix |
+| Nav2 servers | nav2_* | `config/nav2_params.yaml`; output `/nav/cmd_vel` (m/s) → `misty_teleop` |
+| `misty_nav` (mission) | misty_ros | NAV buttons → `NavigateToPose` goals, reactions |
+
+Single-marker heading is only trusted within 2 m and when the solved marker
+faces the camera: OpenCV 4.10's IPPE solver (used by aruco_opencv) sometimes
+returns the flipped solution; those sightings give position only.
+
+## Custom navigation stack (fallback: `nav_stack:=custom`)
 
 ```bash
 ros2 launch misty_ros wizard.launch.py misty_ip:=<MISTY_IP> nav:=true      # real robot

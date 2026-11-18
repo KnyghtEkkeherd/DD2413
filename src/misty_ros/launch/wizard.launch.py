@@ -15,7 +15,7 @@ from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
 from launch.conditions import IfCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
-from launch.substitutions import EnvironmentVariable, LaunchConfiguration
+from launch.substitutions import EnvironmentVariable, LaunchConfiguration, PythonExpression
 from launch_ros.actions import Node
 
 
@@ -30,11 +30,23 @@ def generate_launch_description():
         DeclareLaunchArgument('reactions', default_value=os.path.join(share, 'config', 'reactions.json')),
         DeclareLaunchArgument('params_file', default_value=os.path.join(share, 'config', 'misty_params.yaml')),
         DeclareLaunchArgument('session_dir', default_value=os.path.expanduser('~/misty_ws/sessions')),
-        DeclareLaunchArgument('nav', default_value='false',
-                              description='also run autonomous marker navigation (nav.launch.py)'),
+        DeclareLaunchArgument('nav', default_value='false', description='also run autonomous marker navigation'),
+        DeclareLaunchArgument('nav_stack', default_value='nav2',
+                              description='nav2 (Nav2 + robot_localization, nav2.launch.py) or custom (nav.launch.py)'),
+        DeclareLaunchArgument('markers', default_value='aruco_opencv',
+                              description='nav2 stack: aruco_opencv (camera stream) or json (Misty on-board detector)'),
+        DeclareLaunchArgument('depth', default_value='false', description='nav2 stack: depth camera -> /scan'),
+        IncludeLaunchDescription(
+            PythonLaunchDescriptionSource(os.path.join(share, 'launch', 'nav2.launch.py')),
+            condition=IfCondition(PythonExpression(["'", LaunchConfiguration('nav'), "' == 'true' and '",
+                                                    LaunchConfiguration('nav_stack'), "' == 'nav2'"])),
+            launch_arguments={'misty_ip': ip, 'params_file': LaunchConfiguration('params_file'),
+                              'markers': LaunchConfiguration('markers'),
+                              'depth': LaunchConfiguration('depth'), 'mux': 'false'}.items()),
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource(os.path.join(share, 'launch', 'nav.launch.py')),
-            condition=IfCondition(LaunchConfiguration('nav')),
+            condition=IfCondition(PythonExpression(["'", LaunchConfiguration('nav'), "' == 'true' and '",
+                                                    LaunchConfiguration('nav_stack'), "' == 'custom'"])),
             launch_arguments={'misty_ip': ip, 'params_file': LaunchConfiguration('params_file')}.items()),
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource(os.path.join(share, 'launch', 'misty_foxglove.launch.py')),

@@ -1,9 +1,11 @@
 """Drive Misty and aim its head (camera) from geometry_msgs/Twist.
 
-/cmd_vel        linear.x -> forward/back, angular.z -> turn.
-                Sent as drive_time so Misty stops by itself after
-                drive_time_ms if commands stop arriving (lost connection,
-                released button). Velocities are % of max (-100..100).
+/misty/cmd_vel  TwistStamped in m/s, rad/s: the output of twist_mux (config/twist_mux.yaml),
+                which picks between the wizard's manual driving (Foxglove, controller,
+                keyboard, via teleop_relay), the study node and Nav2. Converted to % of
+                Misty's top speed with max_linear_mps / max_angular_dps and sent as
+                drive_time, so Misty stops by itself after drive_time_ms if commands
+                stop arriving (lost connection, released button).
 /misty/head_cmd linear.x -> tilt up(+)/down(-), angular.z -> pan left(+)/right(-).
                 Each message nudges the head by head_step_deg.
 /misty/head_goal (geometry_msgs/Vector3, degrees: x=pitch, z=yaw)
@@ -27,7 +29,7 @@ import threading
 import time
 
 import rclpy
-from geometry_msgs.msg import Twist, Vector3
+from geometry_msgs.msg import Twist, TwistStamped, Vector3
 from rclpy.node import Node
 
 from misty_ros.sdk import make_robot
@@ -114,6 +116,9 @@ class MistyTeleop(Node):
         self.declare_parameter('arm_velocity', 80.0)    # % of max arm speed
         self.declare_parameter('request_timeout', 1.0)
         self.declare_parameter('parallel_requests', 2)  # commands in flight per channel
+        # /misty/cmd_vel (twist_mux output, m/s, rad/s) -> % of Misty's top speed
+        self.declare_parameter('max_linear_mps', 0.6)    # Misty's speed at 100 % (calibrate!)
+        self.declare_parameter('max_angular_dps', 120.0) # Misty's turn rate at 100 % (calibrate!)
 
         ip = self.get_parameter('misty_ip').value
         if not ip:
@@ -128,12 +133,12 @@ class MistyTeleop(Node):
         self.head_tx = LatestSender('head', self.send_head, workers=n)
         self.arms_tx = LatestSender('arms', self.send_arms, merge=self.merge_arms, workers=n)
 
-        self.create_subscription(Twist, 'cmd_vel', self.on_cmd_vel, 10)
+        self.create_subscription(TwistStamped, 'misty/cmd_vel', self.on_cmd_vel, 10)   # twist_mux output
         self.create_subscription(Twist, 'misty/head_cmd', self.on_head_cmd, 10)
         self.create_subscription(Vector3, 'misty/head_position', self.on_head_position, 10)
         self.create_subscription(Vector3, 'misty/head_goal', self.on_head_goal, 10)
         self.create_subscription(Vector3, 'misty/arms_cmd', self.on_arms_cmd, 10)
-        self.get_logger().info(f'Teleop for Misty {ip}: /cmd_vel drives, /misty/head_cmd aims head')
+        self.get_logger().info(f'Teleop for Misty {ip}: /misty/cmd_vel (twist_mux) drives, /misty/head_cmd aims head')
 
     def p(self, name):
         return self.get_parameter(name).value
@@ -149,9 +154,14 @@ class MistyTeleop(Node):
 
     # ------------------------------------------------------------ callbacks
     # Callbacks only compute the target and hand it to a sender: no network here.
-    def on_cmd_vel(self, msg: Twist):
-        lin = clamp(msg.linear.x * self.p('linear_scale'), -100.0, 100.0)
-        ang = clamp(msg.angular.z * self.p('angular_scale'), -100.0, 100.0)
+    def on_cmd_vel(self, msg: TwistStamped):
+        """twist_mux output (m/s, rad/s): whoever has priority right now drives."""
+        t = msg.twist
+        self.drive_percent(clamp(t.linear.x / float(self.p('max_linear_mps')) * 100.0, -100.0, 100.0),
+                           clamp(math.degrees(t.angular.z) / float(self.p('max_angular_dps')) * 100.0,
+                                 -100.0, 100.0))
+
+    def drive_percent(self, lin, ang):
         if lin == 0.0 and ang == 0.0:
             if self.moving:
                 self.drive_tx.put(('stop',))

@@ -23,9 +23,10 @@ import time
 
 import rclpy
 from rclpy.node import Node
-from sensor_msgs.msg import CompressedImage
+from sensor_msgs.msg import CameraInfo, CompressedImage
 
 from misty_ros.sdk import make_robot
+from misty_ros.vision import camera_info
 
 try:
     import websocket
@@ -90,7 +91,12 @@ class MistyCamera(Node):
         P('rtsp_bitrate', 1500000)
         P('rotate_deg', 0)                  # rotation applied here (clockwise)
         P('jpeg_quality', 70)               # re-encoding quality (rtsp / rotate)
-        P('frame_id', 'misty_camera')
+        P('frame_id', 'camera_optical_frame')   # must match the URDF (urdf/misty.urdf)
+        P('camera_hfov_deg', 70.0)          # CameraInfo for aruco_opencv: field of view, or a
+        P('fx', 0.0)                        # calibration (fx/fy/cx/cy from camera_calibration)
+        P('fy', 0.0)
+        P('cx', 0.0)
+        P('cy', 0.0)
         P('request_timeout', 3.0)
 
         self.ip = self.get_parameter('misty_ip').value
@@ -104,6 +110,11 @@ class MistyCamera(Node):
         self.rotate = int(self.get_parameter('rotate_deg').value) % 360
         self.misty = make_robot(self.ip, float(self.get_parameter('request_timeout').value))
         self.pub = self.create_publisher(CompressedImage, 'misty/camera/image/compressed', 1)
+        self.pub_info = self.create_publisher(CameraInfo, 'misty/camera/camera_info', 1)
+        w, h = (self.height, self.width) if self.rotate in (90, 270) else (self.width, self.height)
+        g = lambda n: self.get_parameter(n).value
+        self.info = camera_info(w, h, g('camera_hfov_deg'), self.frame_id, fx=g('fx'), fy=g('fy'),
+                                cx=g('cx'), cy=g('cy'))
         self.stop_flag = threading.Event()
         self.frames = 0
         self.last_frame = 0.0
@@ -153,6 +164,8 @@ class MistyCamera(Node):
         msg.format = 'jpeg'
         msg.data = data
         self.pub.publish(msg)
+        self.info.header = msg.header
+        self.pub_info.publish(self.info)
         self.frames += 1
         self.last_frame = time.monotonic()
 

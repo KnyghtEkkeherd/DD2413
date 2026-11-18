@@ -1,0 +1,45 @@
+# twist_mux: who may drive Misty. The highest-priority input that has sent a command
+# within its timeout wins; its output (/misty/cmd_vel, m/s) is the ONLY thing that
+# drives Misty (teleop_node on the robot, nav_sim / gz_adapter in simulation).
+#
+#   wizard (Foxglove DRIVE, controller, keyboard)  priority 100 / 90  -> always overrides
+#   study state machine (small look-around turns)  priority 50
+#   Nav2 navigation                                priority 10
+#
+# Locks (std_msgs/Bool, true = locked) block every input with a LOWER priority:
+#   /study/hold_nav  (study_node: Nav2 must not drive in this state)  priority 20
+#   /wizard/estop    (STOP button)                                    priority 95 -> blocks study + Nav2,
+#                                                                     the wizard can still drive by hand
+twist_mux:
+  ros__parameters:
+    use_stamped: true
+    topics:
+      foxglove:
+        topic: cmd_vel/foxglove
+        timeout: 0.5
+        priority: 100
+      gamepad:
+        topic: cmd_vel/gamepad
+        timeout: 0.5
+        priority: 100
+      keyboard:
+        topic: cmd_vel/keyboard
+        timeout: 0.5
+        priority: 90
+      study:
+        topic: cmd_vel/study
+        timeout: 0.5
+        priority: 50
+      navigation:
+        topic: nav/cmd_vel
+        timeout: 0.5
+        priority: 10
+    locks:
+      hold_nav:
+        topic: study/hold_nav
+        timeout: 0.0
+        priority: 20
+      estop:
+        topic: wizard/estop
+        timeout: 0.0
+        priority: 95

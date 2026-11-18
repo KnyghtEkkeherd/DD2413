@@ -1,0 +1,50 @@
+<?xml version="1.0"?>
+<!-- Misty II, simplified, for TF / Nav2 / Foxglove. base_link = centre of the wheel axle on the floor,
+     x forward, y left, z up. Measure your robot and adjust the sensor origins: the marker localizer
+     uses camera_optical_frame, so a wrong camera pose shifts every marker fix.
+     The camera sits in the head: keep the head centred while navigating (head_pitch_deg: 0). -->
+<robot name="misty">
+  <material name="white"><color rgba="0.95 0.95 0.95 1"/></material>
+  <material name="black"><color rgba="0.05 0.05 0.05 1"/></material>
+
+  <link name="base_link">
+    <visual><origin xyz="0 0 0.12"/><geometry><box size="0.22 0.17 0.14"/></geometry><material name="white"/></visual>
+  </link>
+  <link name="head">
+    <visual><geometry><sphere radius="0.07"/></geometry><material name="white"/></visual>
+  </link>
+  <joint name="head_joint" type="fixed"><parent link="base_link"/><child link="head"/>
+    <origin xyz="-0.015 0 0.30"/></joint>
+
+  <!-- RGB camera (visor). camera_link: x forward; camera_optical_frame: z forward, x right, y down -->
+  <link name="camera_link">
+    <visual><geometry><box size="0.01 0.09 0.05"/></geometry><material name="black"/></visual>
+  </link>
+  <joint name="camera_joint" type="fixed"><parent link="base_link"/><child link="camera_link"/>
+    <origin xyz="0.06 0 0.30"/></joint>
+  <link name="camera_optical_frame"/>
+  <joint name="camera_optical_joint" type="fixed"><parent link="camera_link"/><child link="camera_optical_frame"/>
+    <origin rpy="-1.5707963 0 -1.5707963"/></joint>
+
+  <!-- depth camera (if your Misty has one): same place as the RGB camera -->
+  <link name="camera_depth_frame"/>
+  <joint name="camera_depth_joint" type="fixed"><parent link="base_link"/><child link="camera_depth_frame"/>
+    <origin xyz="0.06 0 0.30"/></joint>
+  <link name="camera_depth_optical_frame"/>
+  <joint name="camera_depth_optical_joint" type="fixed"><parent link="camera_depth_frame"/>
+    <child link="camera_depth_optical_frame"/><origin rpy="-1.5707963 0 -1.5707963"/></joint>
+
+  <!-- front time-of-flight sensors (frame names = tof_<SensorPosition> from Misty's events) -->
+  <link name="tof_center"/>
+  <joint name="tof_center_joint" type="fixed"><parent link="base_link"/><child link="tof_center"/>
+    <origin xyz="0.11 0 0.06"/></joint>
+  <link name="tof_left"/>
+  <joint name="tof_left_joint" type="fixed"><parent link="base_link"/><child link="tof_left"/>
+    <origin xyz="0.10 0.05 0.06" rpy="0 0 0.436"/></joint>
+  <link name="tof_right"/>
+  <joint name="tof_right_joint" type="fixed"><parent link="base_link"/><child link="tof_right"/>
+    <origin xyz="0.10 -0.05 0.06" rpy="0 0 -0.436"/></joint>
+  <link name="tof_back"/>
+  <joint name="tof_back_joint" type="fixed"><parent link="base_link"/><child link="tof_back"/>
+    <origin xyz="-0.11 0 0.06" rpy="0 0 3.14159"/></joint>
+</robot>

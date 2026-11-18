@@ -1,31 +1,100 @@
-# Wizard configuration (route, look-back, nudges). Reloaded at each START.
-# What Misty says / plays is in reactions.json.
+# Study configuration: emotions, hand gestures and the study state machine.
+# Read by wizard_node (emotions, gestures, speech, look-back) and study_node (states).
+# Re-read at every START, so edits apply to the next session without a rebuild if you
+# point study_config at this source file (study.launch.py does).
+# What Misty SAYS is in reactions.json (ids like GREETING, READY_Q, ...).
 
-speech:                     # used in sequences to wait for speech to finish if Misty's
+speech:                     # wait for speech to finish (study states, sequences) when Misty's
   fallback_s_per_word: 0.4  # TextToSpeechComplete event isn't available
   fallback_extra_s: 1.0
   completion_margin_s: 5    # max extra wait beyond the estimate
 
-look_back:
+look_back:                  # LOOK BACK (button, or automatic while escorting)
   head_yaw_deg: 81          # Misty's max yaw (+ = left)
   head_velocity: 70         # % of max head speed
   return_after_s: 4         # head turns back to centre after this long
-  say: LOOK_BACK            # reaction (reactions.json) spoken when looking back; "" = none
+  say: LOOK_BACK            # reaction spoken when looking back; "" = none
 
-nudge:                      # small drift corrections
-  turn_velocity: 30         # % angular speed
-  turn_ms: 500
-  forward_velocity: 25      # % linear speed
-  forward_ms: 700
+# ---------------------------------------------------------------- emotions
+# EMOTION:<name> (Foxglove button or study state). All fields optional:
+#   face: Misty image (e_*.jpg; check yours with GET /api/images/list)
+#   led: [r, g, b] solid; with led2 + pattern (breathe | blink | transitonce) + led_ms: animated
+#   arms: [left, right] degrees (-29 = up, 90 = down)   head: [pitch, yaw] degrees (pitch + = down)
+#   sound: reaction id from reactions.json (e.g. SND_JOY)
+emotions:
+  NEUTRAL:    {face: e_DefaultContent.jpg, led: [120, 120, 120]}
+  HAPPY:      {face: e_Joy.jpg, led: [0, 255, 60]}
+  JOY:        {face: e_Joy2.jpg, led: [0, 255, 60], led2: [0, 60, 15], pattern: breathe, led_ms: 900, arms: [-10, -10]}
+  GRUMPY:     {face: e_Contempt.jpg, led: [255, 90, 0]}
+  CONFUSED:   {face: e_Disoriented.jpg, led: [255, 150, 0], led2: [60, 30, 0], pattern: blink, led_ms: 400}
+  FRUSTRATED: {face: e_Anger.jpg, led: [255, 0, 0]}
+  SAD:        {face: e_Sadness.jpg, led: [0, 0, 90], arms: [90, 90]}
+  SOFTENED:   {face: e_ApprehensionConcerned.jpg, led: [40, 60, 160]}
+  SURPRISED:  {face: e_Surprise.jpg, led: [255, 220, 0]}
+  LOVE:       {face: e_Love.jpg, led: [255, 60, 150]}
+  SLEEPY:     {face: e_Sleepy.jpg, led: [30, 30, 60]}
 
-# Route: fixed motion segments, one per "Next segment" press (no SLAM).
-#   forward: {velocity: % of max speed (negative = back), time_ms}
-#   turn:    {degrees: + left / - right, velocity: % angular speed, time_ms}
-# PLACEHOLDER VALUES: tune on the taped floor.
-route:
-  - {forward: {velocity: 30, time_ms: 4000}}
-  - {turn: {degrees: -90, velocity: 30, time_ms: 3000}}
-  - {forward: {velocity: 30, time_ms: 4000}}
-  - {forward: {velocity: 30, time_ms: 4000}}
-  - {turn: {degrees: 90, velocity: 30, time_ms: 3000}}
-  - {forward: {velocity: 30, time_ms: 3000}}
+# ---------------------------------------------------------------- hand gestures
+# GESTURE:<name>: arm poses in order; each step: arms [left, right] (null = keep), wait seconds
+gestures:
+  ARMS_DOWN:  [{arms: [90, 90], wait: 0.5}]
+  ARMS_UP:    [{arms: [-29, -29], wait: 0.5}]
+  ARMS_OPEN:  [{arms: [0, 0], wait: 0.5}]
+  WAVE:       [{arms: [null, -29], wait: 0.6}, {arms: [null, 20], wait: 0.4}, {arms: [null, -29], wait: 0.4},
+               {arms: [null, 20], wait: 0.4}, {arms: [null, -29], wait: 0.4}, {arms: [null, 90], wait: 0.5}]
+  POINT:      [{arms: [null, 0], wait: 2.0}, {arms: [null, 90], wait: 0.5}]
+  SHRUG:      [{arms: [40, 40], wait: 1.2}, {arms: [90, 90], wait: 0.5}]
+  CELEBRATE:  [{arms: [-29, -29], wait: 0.5}, {arms: [40, 40], wait: 0.4}, {arms: [-29, -29], wait: 0.5},
+               {arms: [90, 90], wait: 0.5}]
+
+# ---------------------------------------------------------------- study state machine
+# Based on the study plan (Buddy breaks down), adapted to Nav2 driving between markers.
+# The wizard can jump to any state at any time (STATE:<name> buttons); every change is logged.
+study:
+  markers: {start: 1, half: 2, goal: 3}   # marker ids (marker_map in misty_params.yaml)
+  first_state: APPROACH                   # entered when the session starts (START)
+  look_back_every_s: 15                   # escort states with look_back: true
+  touch_reaction: SND_ACCEPTANCE          # head touch in a state without a TOUCH transition
+  # Each state (all keys optional):
+  #   emotion: NAME          gesture: NAME        head: [pitch, yaw] | sweep (look around) | shake
+  #   say: ID or [ID, ...]   reactions spoken in order; then after_speech applies
+  #   nav: start|half|goal   drive there (Nav2); arrive: STATE when reached. No nav: Nav2 held still
+  #   look_back: true        automatic look-backs (stop, turn head, "still with me?", resume)
+  #   events: {EVENT: STATE} wizard buttons (YES, NO, DISTRACTED, DIR_OK, DIR_WRONG, RECOVER,
+  #                          CONTINUE) and TOUCH; the target RETURN = back to the previous state
+  #                          (quote 'YES' / 'NO': unquoted, YAML reads them as true / false)
+  #   do: {EVENT: ID}        reaction for an event that doesn't change state (e.g. DISTRACTED)
+  #   after_speech: STATE    when everything in `say` has been spoken (+ after_speech_pause_s)
+  #   after: [seconds, STATE]  time in this state (counted from entry)
+  #   timeout: [seconds, STATE]  same, for "no answer" timeouts
+  #   by_condition: {CONTROL: STATE, BREAKDOWN: STATE}  target of after / after_speech / CONTINUE
+  #   max_visits: [n, STATE] on the (n+1)-th entry go to STATE instead
+  #   end_session: true      close the CSV log (same as END)
+  states:
+    APPROACH:      {emotion: NEUTRAL, nav: start, arrive: GREETING}
+    GREETING:      {emotion: HAPPY, gesture: WAVE, say: GREETING, after_speech: CONSENT}
+    CONSENT:       {emotion: NEUTRAL, say: READY_Q, events: {'YES': ESCORT_A, 'NO': NUDGE}, timeout: [12, NUDGE]}
+    NUDGE:         {emotion: GRUMPY, say: NUDGE, events: {'YES': ESCORT_A, 'NO': NUDGE}, timeout: [12, NUDGE],
+                    max_visits: [3, ESCORT_A]}
+    ESCORT_A:      {emotion: NEUTRAL, nav: half, arrive: HALF_PAUSE, look_back: true,
+                    do: {DISTRACTED: CONCENTRATE}}
+    HALF_PAUSE:    {emotion: NEUTRAL, after: [3, null],
+                    by_condition: {CONTROL: CHECK_ROUTE, BREAKDOWN: CONFUSION}}
+    # control branch (the pause is padded to narrow the length gap to the breakdown)
+    CHECK_ROUTE:   {emotion: NEUTRAL, head: sweep, say: CHECK_ROUTE, after_speech: ESCORT_B, after_speech_pause_s: 6}
+    # breakdown branch
+    CONFUSION:     {emotion: CONFUSED, head: sweep, say: CONFUSED, after: [8, FRUSTRATION]}
+    FRUSTRATION:   {emotion: FRUSTRATED, head: shake, say: FRUSTRATED, after: [8, LOST_APPEAL]}
+    LOST_APPEAL:   {emotion: SAD, head: [20, 0], say: [LOST, ASK_HELP], after_speech: HELP_WAIT}
+    HELP_WAIT:     {emotion: SAD, head: [20, 0],
+                    events: {TOUCH: TOUCH_ACK, DIR_OK: GRATITUDE, DIR_WRONG: DISAGREE, RECOVER: RECOVERY},
+                    timeout: [120, RECOVERY]}
+    TOUCH_ACK:     {emotion: SOFTENED, say: SND_ACCEPTANCE, after: [3, RETURN]}
+    GRATITUDE:     {emotion: HAPPY, say: THANKS, after_speech: RETURN, after_speech_pause_s: 1}
+    DISAGREE:      {emotion: SAD, head: shake, say: DISAGREE, after_speech: RETURN, after_speech_pause_s: 1}
+    RECOVERY:      {emotion: JOY, head: [0, 0], say: RECOVER, after_speech: ESCORT_B}
+    # both branches
+    ESCORT_B:      {emotion: NEUTRAL, nav: goal, arrive: ARRIVE, look_back: true,
+                    do: {DISTRACTED: CONCENTRATE}}
+    ARRIVE:        {emotion: JOY, gesture: CELEBRATE, say: ARRIVE, after_speech: END}
+    END:           {emotion: NEUTRAL, end_session: true}

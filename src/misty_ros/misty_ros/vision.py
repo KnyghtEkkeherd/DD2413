@@ -9,6 +9,8 @@ import math
 import numpy as np
 from sensor_msgs.msg import LaserScan
 
+from misty_ros.markers import mat_to_quat
+
 
 class ArucoDetector:
     def __init__(self, dictionary, marker_size_m, hfov_deg=70.0, fx=0.0, fy=0.0, cx=0.0, cy=0.0):
@@ -32,19 +34,48 @@ class ArucoDetector:
         return self.cv2.imdecode(np.frombuffer(bytes(jpeg_bytes), np.uint8), self.cv2.IMREAD_GRAYSCALE)
 
     def detect(self, gray):
-        """Grayscale image -> [{"id", "x", "y", "z"}] in the camera frame."""
+        """Grayscale image -> [{"id", "x", "y", "z", "qx", "qy", "qz", "qw"}]: marker pose in the
+        camera frame (marker frame as aruco_opencv: z out of the face, x right, y up).
+
+        SOLVEPNP_ITERATIVE, not IPPE_SQUARE: with OpenCV 4.10, IPPE returns a flipped
+        (marker facing away) solution for many clean, near-symmetric corner sets.
+        """
         cv2 = self.cv2
         corners, ids, _ = self.detector.detectMarkers(gray)
         dets = []
         if ids is not None:
             K = self.intrinsics(gray.shape[1], gray.shape[0])
             for c, i in zip(corners, ids.flatten()):
-                ok, _, tvec = cv2.solvePnP(self.obj_pts, c.reshape(4, 2).astype(np.float32), K, None,
-                                           flags=cv2.SOLVEPNP_IPPE_SQUARE)
+                ok, rvec, tvec = cv2.solvePnP(self.obj_pts.astype(np.float64), c.reshape(4, 2).astype(np.float64),
+                                              K, None, flags=cv2.SOLVEPNP_ITERATIVE)
                 if ok:
                     t = tvec.flatten()
-                    dets.append({'id': int(i), 'x': float(t[0]), 'y': float(t[1]), 'z': float(t[2])})
+                    qx, qy, qz, qw = mat_to_quat(cv2.Rodrigues(rvec)[0])
+                    dets.append({'id': int(i), 'x': float(t[0]), 'y': float(t[1]), 'z': float(t[2]),
+                                 'qx': float(qx), 'qy': float(qy), 'qz': float(qz), 'qw': float(qw)})
         return dets
+
+
+def camera_info(width, height, hfov_deg, frame_id, stamp=None, fx=0.0, fy=0.0, cx=0.0, cy=0.0):
+    """sensor_msgs/CameraInfo for an undistorted pinhole camera (fx = 0: from the field of view).
+
+    Put real values from `ros2 run camera_calibration cameracalibrator` in fx/fy/cx/cy
+    for accurate marker distances.
+    """
+    from sensor_msgs.msg import CameraInfo
+    fx = float(fx) or (width / 2.0) / math.tan(math.radians(float(hfov_deg)) / 2.0)
+    fy, cx, cy = float(fy) or fx, float(cx) or width / 2.0, float(cy) or height / 2.0
+    ci = CameraInfo()
+    if stamp is not None:
+        ci.header.stamp = stamp
+    ci.header.frame_id = frame_id
+    ci.width, ci.height = int(width), int(height)
+    ci.distortion_model = 'plumb_bob'
+    ci.d = [0.0] * 5
+    ci.k = [fx, 0.0, cx, 0.0, fy, cy, 0.0, 0.0, 1.0]
+    ci.r = [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]
+    ci.p = [fx, 0.0, cx, 0.0, 0.0, fy, cy, 0.0, 0.0, 0.0, 1.0, 0.0]
+    return ci
 
 
 def depth_to_scan(depth_m, band, hfov_deg, stamp, frame_id='camera'):

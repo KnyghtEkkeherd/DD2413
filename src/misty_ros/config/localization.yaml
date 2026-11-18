@@ -1,0 +1,103 @@
+# Localization for the Nav2 stack (launch/nav2.launch.py), robot_localization dual EKF:
+#
+#   ekf_odom  wheel odometry + IMU            -> odom -> base_link  (smooth, drifts slowly)
+#   ekf_map   same + marker pose fixes        -> map -> odom        (absolute, can jump)
+#
+# Marker fixes come from marker_localizer (marker_map in misty_params.yaml).
+# State vector order for the *_config lists:
+#   x y z  roll pitch yaw  vx vy vz  vroll vpitch vyaw  ax ay az
+
+ekf_odom:
+  ros__parameters:
+    frequency: 30.0
+    sensor_timeout: 0.5
+    two_d_mode: true
+    publish_tf: true
+    map_frame: map
+    odom_frame: odom
+    base_link_frame: base_link
+    world_frame: odom
+    odom0: /misty/wheel_odom
+    odom0_config: [false, false, false,  false, false, false,
+                   true,  true,  false,  false, false, true,
+                   false, false, false]
+    imu0: /misty/imu
+    imu0_config: [false, false, false,  false, false, true,
+                  false, false, false,  false, false, true,
+                  false, false, false]
+    imu0_relative: true                 # start heading = 0 in odom
+    imu0_remove_gravitational_acceleration: false
+
+ekf_map:
+  ros__parameters:
+    frequency: 20.0
+    sensor_timeout: 0.5
+    two_d_mode: true
+    publish_tf: true
+    map_frame: map
+    odom_frame: odom
+    base_link_frame: base_link
+    world_frame: map
+    smooth_lagged_data: true            # marker fixes arrive late (camera + detection latency)
+    history_length: 1.5
+    odom0: /misty/wheel_odom
+    odom0_config: [false, false, false,  false, false, false,
+                   true,  true,  false,  false, false, true,
+                   false, false, false]
+    imu0: /misty/imu
+    imu0_config: [false, false, false,  false, false, false,
+                  false, false, false,  false, false, true,
+                  false, false, false]
+    pose0: /localization/marker_pose    # x, y, heading (close, frontal markers)
+    pose0_config: [true,  true,  false,  false, false, true,
+                   false, false, false,  false, false, false,
+                   false, false, false]
+    pose0_rejection_threshold: 6.0      # Mahalanobis: drop fixes far from the estimate
+    pose1: /localization/marker_pose_xy # position only (far / oblique markers)
+    pose1_config: [true,  true,  false,  false, false, false,
+                   false, false, false,  false, false, false,
+                   false, false, false]
+    pose1_rejection_threshold: 6.0
+    # Start pose unknown until the first marker fix: very uncertain x, y, heading.
+    initial_estimate_covariance: [100.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                                  0.0, 100.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                                  0.0, 0.0, 1e-9, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                                  0.0, 0.0, 0.0, 1e-9, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                                  0.0, 0.0, 0.0, 0.0, 1e-9, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                                  0.0, 0.0, 0.0, 0.0, 0.0, 10.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                                  0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1e-3, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                                  0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1e-3, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                                  0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1e-9, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                                  0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1e-9, 0.0, 0.0, 0.0, 0.0, 0.0,
+                                  0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1e-9, 0.0, 0.0, 0.0, 0.0,
+                                  0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1e-3, 0.0, 0.0, 0.0,
+                                  0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1e-9, 0.0, 0.0,
+                                  0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1e-9, 0.0,
+                                  0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1e-9]
+
+# aruco_opencv: marker detection on Misty's JPEG stream (needs /misty/camera/camera_info).
+# marker_dict and marker_size are overwritten by nav2.launch.py from misty_sensors.
+aruco_tracker:
+  ros__parameters:
+    cam_base_topic: misty/camera/image
+    image_sub_compressed: true
+    image_is_rectified: true            # CameraInfo has no distortion
+    output_frame: ''
+    marker_dict: 4X4_50
+    marker_size: 0.15
+    publish_tf: true
+    image_sub_qos:
+      reliability: 2
+      durability: 2
+      depth: 1
+    pose_selector:
+      strategy: PLANE_NORMAL_PARALLEL   # prefer the solution facing the camera (see marker_localizer)
+
+# depth camera -> laser scan for Nav2 (only with depth:=true)
+depthimage_to_laserscan:
+  ros__parameters:
+    scan_time: 0.5
+    range_min: 0.15
+    range_max: 4.0
+    scan_height: 20
+    output_frame: camera_depth_frame

@@ -1,7 +1,7 @@
 """Simulated Misty for testing SLAM and navigation without the robot.
 
-Replaces sensors_node + teleop_node: listens to /cmd_vel (same scaling and
-drive_time behaviour as the teleop node) and publishes the same sensor topics
+Replaces sensors_node + teleop_node: listens to /misty/cmd_vel (twist_mux output,
+m/s; same limits and drive_time behaviour as the teleop node) and publishes the same sensor topics
 as sensors_node, with noise:
 
     /misty/encoders  wheel distances with slip
@@ -22,12 +22,15 @@ import math
 import random
 import time
 
+import numpy as np
 import rclpy
-from geometry_msgs.msg import PoseStamped, Twist
+from geometry_msgs.msg import PoseStamped, TwistStamped
 from rclpy.node import Node
 from sensor_msgs.msg import Imu, JointState, Range
 from std_msgs.msg import String
-from visualization_msgs.msg import Marker, MarkerArray
+from visualization_msgs.msg import MarkerArray
+
+from misty_ros.markers import marker_in_map, mat_to_quat, world_markers
 
 DEFAULT_WORLD = {
     "markers": {"1": [1.2, 0.0, 180], "2": [3.5, 1.5, 180], "3": [1.5, -2.0, 90]},
@@ -67,34 +70,6 @@ def ray_walls(ox, oy, dx, dy, w):
     return best
 
 
-def world_markers(world, stamp):
-    """Markers, obstacles and walls as a MarkerArray for Foxglove."""
-    arr = MarkerArray()
-    k = 0
-    for mid, (mx, my, facing) in world['markers'].items():
-        m = Marker()
-        m.header.stamp, m.header.frame_id = stamp, 'map'
-        m.ns, m.id, m.type = 'aruco', k, Marker.CUBE
-        m.pose.position.x, m.pose.position.y, m.pose.position.z = mx, my, 0.2
-        m.pose.orientation.z, m.pose.orientation.w = math.sin(math.radians(facing) / 2), math.cos(math.radians(facing) / 2)
-        m.scale.x, m.scale.y, m.scale.z = 0.02, 0.15, 0.15
-        m.color.r = m.color.g = m.color.b = m.color.a = 1.0
-        arr.markers.append(m)
-        k += 1
-    for ox, oy, r in world.get('obstacles', []):
-        m = Marker()
-        m.header.stamp, m.header.frame_id = stamp, 'map'
-        m.ns, m.id, m.type = 'obstacles', k, Marker.CYLINDER
-        m.pose.position.x, m.pose.position.y, m.pose.position.z = ox, oy, 0.2
-        m.pose.orientation.w = 1.0
-        m.scale.x = m.scale.y = 2 * r
-        m.scale.z = 0.4
-        m.color.r, m.color.a = 0.9, 0.8
-        arr.markers.append(m)
-        k += 1
-    return arr
-
-
 class NavSim(Node):
     def __init__(self):
         super().__init__('misty_nav_sim')
@@ -121,6 +96,9 @@ class NavSim(Node):
         P('tof_angles_deg', [0.0, 25.0, -25.0])     # center, left, right
         P('robot_radius_m', 0.12)
         P('rate', 50.0)
+        P('camera_height_m', 0.30)       # for marker orientation (as aruco_opencv reports it)
+        P('marker_height_m', 0.30)
+        P('marker_yaw_noise_deg', 2.0)
 
         self.world = json.loads(self.get_parameter('world').value)
         random.seed(int(self.get_parameter('seed').value))
@@ -140,7 +118,8 @@ class NavSim(Node):
         self.pub_true = self.create_publisher(PoseStamped, 'sim/true_pose', 10)
         self.pub_world = self.create_publisher(MarkerArray, 'sim/world', 1)
         self.pub_stats = self.create_publisher(String, 'sim/stats', 1)
-        self.create_subscription(Twist, 'cmd_vel', self.on_cmd, 10)
+        self.create_subscription(TwistStamped, 'misty/cmd_vel', self.on_mux_cmd, 10)   # twist_mux output
+        self.last_w = 0.0
 
         self.dt = 1.0 / float(self.get_parameter('rate').value)
         self.last = time.monotonic()
@@ -154,9 +133,13 @@ class NavSim(Node):
     def p(self, name):
         return self.get_parameter(name).value
 
-    def on_cmd(self, msg):
-        lin = max(-100.0, min(100.0, msg.linear.x * float(self.p('linear_scale'))))
-        ang = max(-100.0, min(100.0, msg.angular.z * float(self.p('angular_scale'))))
+    def on_mux_cmd(self, msg):
+        """twist_mux output in m/s, rad/s (like teleop_node: limited to Misty at 100 %)."""
+        v = max(-1.0, min(1.0, msg.twist.linear.x / float(self.p('max_linear_mps'))))
+        w = max(-1.0, min(1.0, math.degrees(msg.twist.angular.z) / float(self.p('max_angular_dps'))))
+        self.set_cmd(v * 100.0, w * 100.0)
+
+    def set_cmd(self, lin, ang):
         if lin == 0.0 and ang == 0.0:
             self.cmd, self.cmd_until = (0.0, 0.0), 0.0
         else:
@@ -189,6 +172,7 @@ class NavSim(Node):
             self.in_collision = False
             self.x, self.y = nx, ny
         self.th = wrap(self.th + dth)
+        self.last_w = dth / dt if dt > 0 else 0.0
         wb, slip = float(self.p('wheel_base_m')), float(self.p('slip'))
         dl, dr = ds - dth * wb / 2, ds + dth * wb / 2
         self.enc[0] += dl * (1 + random.gauss(0, slip))
@@ -205,6 +189,11 @@ class NavSim(Node):
         imu.header.stamp, imu.header.frame_id = stamp, 'base_link'
         yaw = self.th + self.imu_bias + math.radians(random.gauss(0, float(self.p('imu_noise_deg'))))
         imu.orientation.z, imu.orientation.w = math.sin(yaw / 2), math.cos(yaw / 2)
+        var = math.radians(float(self.p('imu_noise_deg'))) ** 2 + 1e-6
+        imu.orientation_covariance = [var, 0.0, 0.0, 0.0, var, 0.0, 0.0, 0.0, var]
+        imu.angular_velocity.z = self.last_w + random.gauss(0, 0.01)
+        imu.angular_velocity_covariance = [1e-4, 0.0, 0.0, 0.0, 1e-4, 0.0, 0.0, 0.0, 1e-4]
+        imu.linear_acceleration_covariance[0] = -1.0
         self.pub_imu.publish(imu)
         for name, a in zip(('center', 'left', 'right'), self.p('tof_angles_deg')):
             ang = self.th + math.radians(a)
@@ -213,11 +202,12 @@ class NavSim(Node):
             for ox, oy, r in self.world.get('obstacles', []):
                 d = min(d, ray_circle(self.x, self.y, dx, dy, ox, oy, r))
             d -= float(self.p('robot_radius_m'))           # sensors sit on the robot's front
-            if d <= float(self.p('tof_max_m')):
-                rg = Range()
-                rg.header.stamp, rg.header.frame_id = stamp, f'tof_{name}'
-                rg.range = max(0.01, d + random.gauss(0, 0.01))
-                self.pub_tof.publish(rg)
+            rg = Range()
+            rg.header.stamp, rg.header.frame_id = stamp, f'tof_{name}'
+            rg.radiation_type, rg.field_of_view = Range.INFRARED, math.radians(25.0)
+            rg.min_range, rg.max_range = 0.01, float(self.p('tof_max_m'))
+            rg.range = max(0.01, d + random.gauss(0, 0.01)) if d <= rg.max_range else math.inf
+            self.pub_tof.publish(rg)
         t = PoseStamped()
         t.header.stamp, t.header.frame_id = stamp, 'map'
         t.pose.position.x, t.pose.position.y = self.x, self.y
@@ -252,7 +242,15 @@ class NavSim(Node):
             n = float(self.p('marker_noise_m')) * (0.5 + rng / 2)
             xr = rng * math.cos(bearing) + random.gauss(0, n)
             yr = rng * math.sin(bearing) + random.gauss(0, n)
-            dets.append({'id': int(mid), 'x': -yr, 'y': 0.0, 'z': xr})   # camera frame
+            det = {'id': int(mid), 'x': -yr, 'y': float(self.p('camera_height_m')) - float(self.p('marker_height_m')),
+                   'z': xr}                                      # camera optical frame
+            # marker orientation in the camera frame, as aruco_opencv reports it
+            th = self.th + math.radians(random.gauss(0, float(self.p('marker_yaw_noise_deg'))))
+            cam_R = marker_in_map(0, 0, math.degrees(th) + 180.0, 0)[:3, :3]   # optical: z fwd, x right, y down
+            cam_R = cam_R @ np.diag([1.0, -1.0, -1.0])
+            qx, qy, qz, qw = mat_to_quat(cam_R.T @ marker_in_map(mx, my, facing, 0)[:3, :3])
+            det.update(qx=qx, qy=qy, qz=qz, qw=qw)
+            dets.append(det)
         self.pending_markers.append((now + float(self.p('marker_latency_s')), dets))
 
     def publish_world(self):

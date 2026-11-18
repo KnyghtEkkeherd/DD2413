@@ -27,11 +27,11 @@ import time
 import numpy as np
 import rclpy
 from rclpy.node import Node
-from sensor_msgs.msg import CompressedImage, Imu, JointState, LaserScan, Range
+from sensor_msgs.msg import CameraInfo, CompressedImage, Image, Imu, JointState, LaserScan, Range
 from std_msgs.msg import String
 
 from misty_ros.sdk import make_robot
-from misty_ros.vision import ArucoDetector, depth_to_scan
+from misty_ros.vision import ArucoDetector, camera_info, depth_to_scan
 
 try:
     import websocket
@@ -98,6 +98,9 @@ class MistySensors(Node):
         self.declare_parameter('depth_hfov_deg', 60.0)
         self.declare_parameter('depth_scale', 0.001)        # depth units -> metres (mm)
         self.declare_parameter('depth_band', [0.35, 0.65])  # image rows used (fraction of height)
+        self.declare_parameter('depth_frame_id', 'camera_depth_optical_frame')
+        self.declare_parameter('imu_yaw_sign', 1.0)         # -1 if Misty's yaw grows clockwise (ROS: counter-clockwise)
+        self.declare_parameter('imu_yaw_std_deg', 1.0)      # orientation noise for robot_localization
 
         self.ip = self.get_parameter('misty_ip').value
         if not self.ip:
@@ -110,6 +113,8 @@ class MistySensors(Node):
         self.pub_tof = self.create_publisher(Range, 'misty/tof', 20)
         self.pub_markers = self.create_publisher(String, 'misty/markers', 10)
         self.pub_depth = self.create_publisher(LaserScan, 'misty/depth_scan', 5)
+        self.pub_depth_img = self.create_publisher(Image, 'misty/depth/image', 2)          # for
+        self.pub_depth_info = self.create_publisher(CameraInfo, 'misty/depth/camera_info', 2)  # depthimage_to_laserscan
         self.stop_flag = threading.Event()
         self.counts = {}
 
@@ -218,7 +223,8 @@ class MistySensors(Node):
         self.pub_enc.publish(js)
 
     def on_imu(self, m):
-        yaw = math.radians(float(first(m, 'yaw', default=0.0)))
+        sign = float(self.get_parameter('imu_yaw_sign').value)
+        yaw = sign * math.radians(float(first(m, 'yaw', default=0.0)))
         pitch = math.radians(float(first(m, 'pitch', default=0.0)))
         roll = math.radians(float(first(m, 'roll', default=0.0)))
         imu = Imu()
@@ -226,24 +232,30 @@ class MistySensors(Node):
         imu.header.frame_id = 'base_link'
         q = quat_from_ypr(yaw, pitch, roll)
         imu.orientation.x, imu.orientation.y, imu.orientation.z, imu.orientation.w = q
-        imu.angular_velocity.z = math.radians(float(first(m, 'zangularvelocity', 'yawvelocity', default=0.0)))
+        var = math.radians(float(self.get_parameter('imu_yaw_std_deg').value)) ** 2
+        imu.orientation_covariance = [var, 0.0, 0.0, 0.0, var, 0.0, 0.0, 0.0, var]
+        imu.angular_velocity.z = sign * math.radians(
+            float(first(m, 'zangularvelocity', 'yawvelocity', default=0.0)))
+        imu.angular_velocity_covariance = [1e-3, 0.0, 0.0, 0.0, 1e-3, 0.0, 0.0, 0.0, 1e-3]
+        imu.linear_acceleration_covariance[0] = -1.0          # not provided
         self.pub_imu.publish(imu)
 
     def on_tof(self, m):
+        """Valid reading -> its range; invalid / out of range -> +inf ("nothing seen", REP 117),
+        so Nav2's range layer clears and the collision monitor keeps getting fresh data."""
         pos = str(first(m, 'sensorposition', 'position', default='unknown')).lower()
         if pos.startswith('down'):               # edge (cliff) sensors: not obstacles
             return
         status = first(m, 'status', default=0)
         dist = first(m, 'distanceinmeters', 'distance')
-        if dist is None or (status not in (0, '0', None) and not first(m, 'inrange', default=False)):
-            return                               # invalid reading: leave it out
+        valid = dist is not None and (status in (0, '0', None) or first(m, 'inrange', default=False))
         r = Range()
         r.header.stamp = self.get_clock().now().to_msg()
         r.header.frame_id = f'tof_{pos}'
         r.radiation_type = Range.INFRARED
         r.field_of_view = math.radians(25.0)
         r.min_range, r.max_range = 0.01, 2.0
-        r.range = float(dist)
+        r.range = float(dist) if valid else math.inf
         self.pub_tof.publish(r)
 
     def on_artag(self, m):
@@ -293,6 +305,16 @@ class MistySensors(Node):
             self.stop_flag.wait(period)
 
     def publish_depth_scan(self, img):
+        stamp = self.get_clock().now().to_msg()
+        depth = (img * float(self.get_parameter('depth_scale').value)).astype(np.float32)
+        depth[~np.isfinite(depth) | (depth <= 0.0)] = np.nan
+        frame = self.get_parameter('depth_frame_id').value
+        msg = Image(height=depth.shape[0], width=depth.shape[1], encoding='32FC1', step=depth.shape[1] * 4,
+                    data=depth.tobytes())
+        msg.header.stamp, msg.header.frame_id = stamp, frame
+        self.pub_depth_img.publish(msg)
+        self.pub_depth_info.publish(camera_info(depth.shape[1], depth.shape[0],
+                                                self.get_parameter('depth_hfov_deg').value, frame, stamp))
         self.pub_depth.publish(depth_to_scan(
             img * float(self.get_parameter('depth_scale').value), self.get_parameter('depth_band').value,
             self.get_parameter('depth_hfov_deg').value, self.get_clock().now().to_msg()))

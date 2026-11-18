@@ -1,10 +1,15 @@
-"""Start Misty camera, teleop, controller nodes and foxglove_bridge.
+"""Start Misty camera, teleop, controller nodes, twist_mux and foxglove_bridge.
 
     ros2 launch misty_ros misty_foxglove.launch.py misty_ip:=192.168.1.42
 
 Speeds, gains and camera settings come from config/misty_params.yaml
 (params_file:=... to use another file). Then in Foxglove: Open connection ->
 Foxglove WebSocket -> ws://<this-host>:8765.
+
+Driving: every source goes through twist_mux (config/twist_mux.yaml): the wizard's
+Foxglove DRIVE panel / controller / keyboard (via teleop_relay) override the study
+node and Nav2; only twist_mux's output (/misty/cmd_vel) reaches teleop_node.
+robot:=false skips the camera and teleop nodes (simulators replace them).
 """
 from pathlib import Path
 
@@ -33,16 +38,24 @@ def generate_launch_description():
         DeclareLaunchArgument('gamepad_port', default_value='9876'),
         DeclareLaunchArgument('gamepad_local', default_value='false',
                               description='Controller plugged into THIS machine: also run the sender here'),
+        DeclareLaunchArgument('robot', default_value='true',
+                              description='false: no camera / teleop node (simulator drives instead)'),
         DeclareLaunchArgument('gamepad_python', default_value=str(ws / 'misty_venv' / 'bin' / 'python'),
                               description='Python with pygame-ce for the local sender'),
     ]
     ip = LaunchConfiguration('misty_ip')
     params = LaunchConfiguration('params_file')
 
+    robot = IfCondition(LaunchConfiguration('robot'))
     camera = Node(package='misty_ros', executable='camera_node', name='misty_camera', output='screen',
-                  parameters=[params, {'misty_ip': ip}])
+                  condition=robot, parameters=[params, {'misty_ip': ip}])
     teleop = Node(package='misty_ros', executable='teleop_node', name='misty_teleop', output='screen',
-                  parameters=[params, {'misty_ip': ip}])
+                  condition=robot, parameters=[params, {'misty_ip': ip}])
+    relay = Node(package='misty_ros', executable='teleop_relay', name='misty_teleop_relay', output='screen',
+                 parameters=[params])
+    mux = Node(package='twist_mux', executable='twist_mux', name='twist_mux', output='screen',
+               parameters=[str(share / 'config' / 'twist_mux.yaml')],
+               remappings=[('cmd_vel_out', 'misty/cmd_vel')])
     gamepad = Node(package='misty_ros', executable='gamepad_teleop', name='misty_gamepad_teleop', output='screen',
                    condition=IfCondition(LaunchConfiguration('gamepad')),
                    parameters=[params, {'port': ParameterValue(LaunchConfiguration('gamepad_port'), value_type=int)}])
@@ -55,4 +68,4 @@ def generate_launch_description():
         name='gamepad_sender', output='screen', additional_env={'SDL_VIDEODRIVER': 'dummy'},
         condition=IfCondition(LaunchConfiguration('gamepad_local')))
 
-    return LaunchDescription(args + [camera, teleop, bridge, gamepad, gamepad_sender])
+    return LaunchDescription(args + [camera, teleop, relay, mux, bridge, gamepad, gamepad_sender])

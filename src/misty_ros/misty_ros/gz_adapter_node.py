@@ -3,8 +3,8 @@
 Replaces sensors_node + teleop_node when running in Gazebo (gazebo.launch.py).
 Everything downstream (slam_node, nav_node, Foxglove) runs unchanged.
 
-    /cmd_vel (teleop units, same scaling and drive_time as teleop_node)
-                                -> /sim/cmd_vel (m/s, rad/s)
+    /misty/cmd_vel (twist_mux output, m/s; drive_time like teleop_node)
+                                -> /sim/cmd_vel
     /sim/joint_states           -> /misty/encoders     wheel distances [m] (+ optional slip noise)
     /sim/imu                    -> /misty/imu
     /sim/tof (3-ray gpu_lidar)  -> /misty/tof          tof_right / tof_center / tof_left
@@ -22,15 +22,16 @@ import time
 
 import numpy as np
 import rclpy
-from geometry_msgs.msg import PoseStamped, Twist
+from geometry_msgs.msg import PoseStamped, Twist, TwistStamped
 from nav_msgs.msg import Odometry
 from rclpy.node import Node
-from sensor_msgs.msg import CompressedImage, Image, Imu, JointState, LaserScan, Range
+from sensor_msgs.msg import CameraInfo, CompressedImage, Image, Imu, JointState, LaserScan, Range
 from std_msgs.msg import String
 from visualization_msgs.msg import MarkerArray
 
-from misty_ros.nav_sim_node import DEFAULT_WORLD, world_markers
-from misty_ros.vision import ArucoDetector, depth_to_scan
+from misty_ros.markers import world_markers
+from misty_ros.nav_sim_node import DEFAULT_WORLD
+from misty_ros.vision import ArucoDetector, camera_info, depth_to_scan
 
 
 class GzAdapter(Node):
@@ -54,6 +55,7 @@ class GzAdapter(Node):
         P('depth_hfov_deg', 60.0)
         P('depth_band', [0.35, 0.65])
         P('tof_names', ['right', 'center', 'left'])   # gpu_lidar samples, min angle first
+        P('publish_markers', True)       # own OpenCV detections on /misty/markers (json source)
 
         self.world = json.loads(self.p('world'))
         self.aruco = ArucoDetector(self.p('aruco_dictionary'), self.p('marker_size_m'), self.p('camera_hfov_deg'))
@@ -76,11 +78,14 @@ class GzAdapter(Node):
         self.pub_tof = self.create_publisher(Range, 'misty/tof', 20)
         self.pub_markers = self.create_publisher(String, 'misty/markers', 10)
         self.pub_img = self.create_publisher(CompressedImage, 'misty/camera/image/compressed', 1)
+        self.pub_info = self.create_publisher(CameraInfo, 'misty/camera/camera_info', 1)
+        self.pub_depth_img = self.create_publisher(Image, 'misty/depth/image', 2)
+        self.pub_depth_info = self.create_publisher(CameraInfo, 'misty/depth/camera_info', 2)
         self.pub_depth = self.create_publisher(LaserScan, 'misty/depth_scan', 5)
         self.pub_true = self.create_publisher(PoseStamped, 'sim/true_pose', 10)
         self.pub_world = self.create_publisher(MarkerArray, 'sim/world', 1)
 
-        self.create_subscription(Twist, 'cmd_vel', self.on_cmd, 10)
+        self.create_subscription(TwistStamped, 'misty/cmd_vel', self.on_mux_cmd, 10)   # twist_mux output
         self.create_subscription(JointState, '/sim/joint_states', self.on_joints, 50)
         self.create_subscription(Imu, '/sim/imu', self.on_imu, 50)
         self.create_subscription(LaserScan, '/sim/tof', self.on_tof, 10)
@@ -110,11 +115,11 @@ class GzAdapter(Node):
         self.counts = {}
 
     # ------------------------------------------------------------- driving
-    def on_cmd(self, msg: Twist):
-        lin = max(-100.0, min(100.0, msg.linear.x * float(self.p('linear_scale'))))
-        ang = max(-100.0, min(100.0, msg.angular.z * float(self.p('angular_scale'))))
-        v = lin / 100.0 * float(self.p('max_linear_mps'))
-        w = math.radians(ang / 100.0 * float(self.p('max_angular_dps')))
+    def on_mux_cmd(self, msg: TwistStamped):
+        """twist_mux output (m/s, rad/s), limited like Misty at 100 %."""
+        vmax, wmax = float(self.p('max_linear_mps')), math.radians(float(self.p('max_angular_dps')))
+        v = max(-vmax, min(vmax, msg.twist.linear.x))
+        w = max(-wmax, min(wmax, msg.twist.angular.z))
         self.pending_cmds.append((time.monotonic() + float(self.p('command_latency_s')), v, w))
 
     def drive(self):
@@ -152,20 +157,21 @@ class GzAdapter(Node):
     def on_imu(self, msg: Imu):
         msg.header.stamp = self.get_clock().now().to_msg()
         msg.header.frame_id = 'base_link'
+        msg.orientation_covariance = [3e-4, 0.0, 0.0, 0.0, 3e-4, 0.0, 0.0, 0.0, 3e-4]
+        msg.angular_velocity_covariance = [1e-4, 0.0, 0.0, 0.0, 1e-4, 0.0, 0.0, 0.0, 1e-4]
         self.pub_imu.publish(msg)
         self.count('imu')
 
     def on_tof(self, msg: LaserScan):
         stamp = self.get_clock().now().to_msg()
         for name, d in zip(self.p('tof_names'), msg.ranges):
-            if math.isfinite(d) and msg.range_min <= d < msg.range_max:
-                r = Range()
-                r.header.stamp, r.header.frame_id = stamp, f'tof_{name}'
-                r.radiation_type = Range.INFRARED
-                r.field_of_view = math.radians(25.0)
-                r.min_range, r.max_range = msg.range_min, msg.range_max
-                r.range = float(d)
-                self.pub_tof.publish(r)
+            r = Range()
+            r.header.stamp, r.header.frame_id = stamp, f'tof_{name}'
+            r.radiation_type = Range.INFRARED
+            r.field_of_view = math.radians(25.0)
+            r.min_range, r.max_range = msg.range_min, msg.range_max
+            r.range = float(d) if math.isfinite(d) and msg.range_min <= d < msg.range_max else math.inf
+            self.pub_tof.publish(r)
 
     def on_truth(self, msg: Odometry):
         ps = PoseStamped()
@@ -179,6 +185,11 @@ class GzAdapter(Node):
             self.get_logger().warning(f'depth encoding {msg.encoding} unsupported', throttle_duration_sec=30.0)
             return
         img = np.frombuffer(bytes(msg.data), np.float32).reshape(msg.height, msg.step // 4)[:, :msg.width]
+        stamp = self.get_clock().now().to_msg()
+        msg.header.stamp, msg.header.frame_id = stamp, 'camera_depth_optical_frame'
+        self.pub_depth_img.publish(msg)
+        self.pub_depth_info.publish(camera_info(msg.width, msg.height, self.p('depth_hfov_deg'),
+                                                'camera_depth_optical_frame', stamp))
         self.pub_depth.publish(depth_to_scan(img, self.p('depth_band'), self.p('depth_hfov_deg'),
                                              self.get_clock().now().to_msg()))
         self.count('depth')
@@ -204,12 +215,14 @@ class GzAdapter(Node):
             if ok:
                 out = CompressedImage()
                 out.header.stamp = self.get_clock().now().to_msg()
-                out.header.frame_id = 'camera'
+                out.header.frame_id = 'camera_optical_frame'
                 out.format = 'jpeg'
                 out.data = jpg.tobytes()
                 self.pub_img.publish(out)
+                self.pub_info.publish(camera_info(msg.width, msg.height, self.p('camera_hfov_deg'),
+                                                  'camera_optical_frame', out.header.stamp))
             now = time.monotonic()
-            if now - self.last_detect >= 1.0 / float(self.p('detect_rate')):
+            if self.p('publish_markers') and now - self.last_detect >= 1.0 / float(self.p('detect_rate')):
                 self.last_detect = now
                 gray = cv2.cvtColor(bgr, cv2.COLOR_BGR2GRAY) if bgr.ndim == 3 else bgr
                 dets = self.aruco.detect(gray)
