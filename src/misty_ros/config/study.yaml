@@ -1,6 +1,34 @@
 # Wizard configuration (route, look-back, nudges). Reloaded at each START.
 # What Misty says / plays is in reactions.json.
 
+# Eye images are stored on Misty II. Names like e_Sadness.jpg are built-in.
+# A named reaction in reactions.json (e.g. FAILURE) can select an emotion here.
+# The eyes stay sad for the full FAILURE sequence, then revert to default.
+# One-shot speech/sound reactions hold the expression for one_shot_hold_s.
+# Settings in this file reload on session START (or restart the wizard).
+eyes:
+  default: neutral
+  one_shot_hold_s: 4.0
+  emotions:
+    neutral: e_DefaultContent.jpg
+    sad: e_Sadness.jpg
+    happy: e_Joy.jpg
+    confused: e_Disoriented.jpg
+    angry: e_Anger.jpg
+    concerned: e_ApprehensionConcerned.jpg
+  reactions:
+    FAILURE: sad
+    GREETING: happy
+    CONFUSED: confused
+    FRUSTRATED: angry
+    LOST: sad
+    ASK_HELP: sad
+    THANKS: happy
+  buttons:
+    LOOK_BACK: concerned
+    HEAD_CENTER: neutral
+    FACE_TRACK_ON: happy
+
 speech:                     # used in sequences to wait for speech to finish if Misty's
   fallback_s_per_word: 0.4  # TextToSpeechComplete event isn't available
   fallback_extra_s: 1.0
