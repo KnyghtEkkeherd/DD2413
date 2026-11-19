@@ -11,7 +11,10 @@ runtime parameter fail_trigger. Each marker's role decides what happens on arriv
     other ids       waypoint: drive on
 
 All driving is Nav2's: each target is a NavigateToPose goal standoff_m in front of
-the marker (from marker_map), facing it; Nav2 plans around obstacles, follows the
+the marker, facing it; marker positions come from the localizer (/localization/markers:
+measured or learned while driving). A target that isn't known yet is searched for
+by turning on the spot; while a marker is still being learned its goal is updated
+as the estimate improves. Nav2 plans around obstacles, follows the
 path and runs its recoveries. Until a marker has been seen (no position in the
 map yet), and after a failed goal, Misty turns on the spot (Nav2 Spin) to look
 for markers before trying again.
@@ -52,13 +55,18 @@ class Mission(Node):
         P('wait_after_start', True)
         P('wait_after_fail', True)
         P('head_pitch_deg', 0.0)                # head pose while navigating (camera forward)
+        P('head_tolerance_deg', 5.0)            # re-centre the head when it's further off than this
         P('standoff_m', 0.6)                    # goal: this far in front of the marker
         P('fix_timeout_s', 20.0)                # no marker fix for this long -> look around first
+        P('search_spin', False)                 # unknown target: False = wait for the wizard to steer
+                                                # Misty until she sees it; True = turn on the spot to look
         P('search_step_deg', 60.0)              # Spin this much, then wait search_dwell_s
         P('search_dwell_s', 1.5)
         P('max_retries', 3)                     # failed goals before giving up on a target
+        P('goal_update_m', 0.15)                # re-send the goal when the marker estimate moves this much
 
-        self.map = {int(k): v for k, v in json.loads(self.p('marker_map') or '{}').items()}
+        self.map = {int(k): v[:3] for k, v in json.loads(self.p('marker_map') or '{}').items()}
+        self.goal_xy, self.goal_sent_at = None, 0.0
         latched = QoSProfile(depth=1, durability=DurabilityPolicy.TRANSIENT_LOCAL)
         self.status_pub = self.create_publisher(String, 'nav/status', latched)
         self.wizard = self.create_publisher(String, 'wizard/event', 10)
@@ -83,8 +91,11 @@ class Mission(Node):
         self.status = ''
         self.create_timer(0.2, self.tick)
         self.set_status('IDLE: press NAV START')
-        if not self.map:
-            self.get_logger().error('marker_map is empty: no goals can be computed')
+        self.create_subscription(String, 'localization/markers', self.on_markers, latched)
+        self.create_subscription(Vector3, 'misty/head_state', self.on_head, 10)
+        self.head = (0.0, 0.0)                  # measured (pitch, yaw), degrees
+        self.last_center = 0.0
+        self.create_timer(0.2, self.keep_head_straight)
 
     def p(self, name):
         return self.get_parameter(name).value
@@ -101,6 +112,35 @@ class Mission(Node):
 
     def on_fix(self, _msg):
         self.last_fix = time.monotonic()
+
+    def on_head(self, msg):
+        self.head = (float(msg.x), float(msg.z))
+
+    def keep_head_straight(self):
+        """The camera is in the head and localization assumes it looks straight ahead:
+        while navigating or searching, re-centre the head whenever it's turned (at most 1/s)."""
+        if self.state not in ('NAVIGATE', 'SEARCH'):
+            return
+        tol = float(self.p('head_tolerance_deg'))
+        pitch0 = float(self.p('head_pitch_deg'))
+        if (abs(self.head[1]) > tol or abs(self.head[0] - pitch0) > tol) and time.monotonic() - self.last_center > 1.0:
+            self.head_goal.publish(Vector3(x=pitch0, y=0.0, z=0.0))
+            self.last_center = time.monotonic()
+
+    def on_markers(self, msg):
+        """Marker map from the localizer (fixed + learning); update the running goal if it moved."""
+        try:
+            data = json.loads(msg.data)
+        except ValueError:
+            return
+        self.map = {int(k): [e['x'], e['y'], e['facing']] for k, e in data.items()}
+        mid = self.target()
+        if self.state == 'NAVIGATE' and mid in self.map and self.goal_xy is not None \
+                and time.monotonic() - self.goal_sent_at > 2.0:
+            g = self.goal_pose(mid).pose.position
+            if math.hypot(g.x - self.goal_xy[0], g.y - self.goal_xy[1]) > float(self.p('goal_update_m')):
+                self.get_logger().info(f'marker {mid} estimate moved: updating the goal')
+                self.send_goal(mid)
 
     def localized(self):
         return time.monotonic() - self.last_fix < float(self.p('fix_timeout_s'))
@@ -164,31 +204,33 @@ class Mission(Node):
         if mid is None:
             self.state = 'DONE'
             self.set_status('DONE: mission complete')
-        elif mid not in self.map:
-            self.state = 'FAILED'
-            self.set_status(f'FAILED: marker {mid} is not in marker_map')
         else:
             self.go_or_search()
 
+    def ready(self):
+        """The target's position is known (measured, learned or being learned)."""
+        return self.target() in self.map
+
     def go_or_search(self):
-        if self.localized():
+        if self.ready():
             self.send_goal(self.target())
         else:
             self.state, self.searched, self.dwell_until = 'SEARCH', 0.0, 0.0
-            self.set_status(f'LOCALIZE: looking around for a marker (target {self.target()})')
+            self.set_status(f'SEARCH: turning to find marker {self.target()}')
 
     def tick(self):
         if self.state != 'SEARCH' or self.goal_handle is not None:
             return
-        if self.localized():
+        if self.ready():
             self.send_goal(self.target())
+        elif not self.p('search_spin'):
+            self.set_status(f'WAITING: marker {self.target()} not seen yet. Steer Misty until she sees it: '
+                            'she takes over by herself')
         elif time.monotonic() >= self.dwell_until:
-            if self.searched >= 360.0:
-                self.set_status('LOCALIZE: no marker after a full turn; check markers / lighting, '
-                                'or drive Misty by hand, then NAV START')
-                self.state = 'FAILED'
-                if self.goto is not None:
-                    self.failed_pub.publish(String(data=str(self.goto)))
+            if self.searched >= 360.0:              # stop turning; wait for the wizard to steer
+                self.set_status(f'SEARCH: marker {self.target()} not seen after a full turn. Steer Misty '
+                                'towards it with the controller: she takes over as soon as she sees it')
+                self.dwell_until = math.inf          # tick() keeps checking ready() and then drives
                 return
             self.send_spin(math.radians(float(self.p('search_step_deg'))))
 
@@ -213,6 +255,8 @@ class Mission(Node):
         self.state = 'NAVIGATE'
         goal = NavigateToPose.Goal()
         goal.pose = self.goal_pose(mid)
+        self.goal_xy = (goal.pose.pose.position.x, goal.pose.pose.position.y)
+        self.goal_sent_at = time.monotonic()
         self.goal_pub.publish(goal.pose)
         self.set_status(f'NAVIGATE to marker {mid} ({self.role(mid)})')
         self.token += 1

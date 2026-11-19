@@ -846,7 +846,16 @@
       "advancedView": false,
       "value": "{\"data\": \"NAV_RESET\"}"
     },
-    "3D!3d94": {
+    "Publish!publish94": {
+      "topicName": "/wizard/event",
+      "datatype": "std_msgs/msg/String",
+      "buttonText": "MAP RESET (forget learned markers)",
+      "buttonTooltip": "Send MAP_RESET",
+      "buttonColor": "#8a1c1c",
+      "advancedView": false,
+      "value": "{\"data\": \"MAP_RESET\"}"
+    },
+    "3D!3d95": {
       "foxglovePanelTitle": "Map: markers, robot, plan, costmap",
       "followTf": "map",
       "topics": {
@@ -891,7 +900,7 @@
         }
       }
     },
-    "Tab!tab95": {
+    "Tab!tab96": {
       "activeTabIdx": 0,
       "tabs": [
         {
@@ -1336,24 +1345,29 @@
                 "first": "Publish!publish91",
                 "second": {
                   "first": "Publish!publish92",
-                  "second": "Publish!publish93",
+                  "second": {
+                    "first": "Publish!publish93",
+                    "second": "Publish!publish94",
+                    "direction": "row",
+                    "splitPercentage": 50.0
+                  },
                   "direction": "row",
-                  "splitPercentage": 50.0
+                  "splitPercentage": 33.33333333333333
                 },
                 "direction": "row",
-                "splitPercentage": 33.33333333333333
+                "splitPercentage": 25.0
               },
               "direction": "row",
-              "splitPercentage": 25.0
+              "splitPercentage": 20.0
             },
-            "second": "3D!3d94",
+            "second": "3D!3d95",
             "direction": "column",
             "splitPercentage": 18.0
           }
         }
       ]
     },
-    "Publish!publish96": {
+    "Publish!publish97": {
       "topicName": "/wizard/event",
       "datatype": "std_msgs/msg/String",
       "buttonText": "Look back",
@@ -1362,7 +1376,7 @@
       "advancedView": false,
       "value": "{\"data\": \"LOOK_BACK\"}"
     },
-    "Publish!publish97": {
+    "Publish!publish98": {
       "topicName": "/wizard/event",
       "datatype": "std_msgs/msg/String",
       "buttonText": "Head centre",
@@ -1371,7 +1385,7 @@
       "advancedView": false,
       "value": "{\"data\": \"HEAD_CENTER\"}"
     },
-    "Publish!publish98": {
+    "Publish!publish99": {
       "topicName": "/wizard/event",
       "datatype": "std_msgs/msg/String",
       "buttonText": "■ STOP all (pause study + Nav2)",
@@ -1380,7 +1394,7 @@
       "advancedView": false,
       "value": "{\"data\": \"STOP\"}"
     },
-    "Publish!publish99": {
+    "Publish!publish100": {
       "topicName": "/wizard/event",
       "datatype": "std_msgs/msg/String",
       "buttonText": "▶ RESUME",
@@ -1389,7 +1403,7 @@
       "advancedView": false,
       "value": "{\"data\": \"RESUME\"}"
     },
-    "Publish!publish100": {
+    "Publish!publish101": {
       "topicName": "/wizard/event",
       "datatype": "std_msgs/msg/String",
       "buttonText": "START session",
@@ -1398,7 +1412,7 @@
       "advancedView": false,
       "value": "{\"data\": \"START\"}"
     },
-    "Publish!publish101": {
+    "Publish!publish102": {
       "topicName": "/wizard/event",
       "datatype": "std_msgs/msg/String",
       "buttonText": "END session",
@@ -1407,7 +1421,7 @@
       "advancedView": false,
       "value": "{\"data\": \"END\"}"
     },
-    "Publish!publish102": {
+    "Publish!publish103": {
       "topicName": "/wizard/event",
       "datatype": "std_msgs/msg/String",
       "buttonText": "Log touch (sim)",
@@ -1416,10 +1430,10 @@
       "advancedView": false,
       "value": "{\"data\": \"TOUCH_SIM\"}"
     },
-    "Parameters!parameters103": {
+    "Parameters!parameters104": {
       "title": "Session: set participant_id + condition, then START"
     },
-    "RawMessages!rawmessages104": {
+    "RawMessages!rawmessages105": {
       "foxglovePanelTitle": "Study state",
       "topicPath": "/study/state.data",
       "diffEnabled": false,
@@ -1428,7 +1442,7 @@
       "showFullMessageForDiff": false,
       "fontSize": 20
     },
-    "RawMessages!rawmessages105": {
+    "RawMessages!rawmessages106": {
       "foxglovePanelTitle": "Session",
       "topicPath": "/wizard/session.data",
       "diffEnabled": false,
@@ -1437,7 +1451,7 @@
       "showFullMessageForDiff": false,
       "fontSize": 16
     },
-    "RawMessages!rawmessages106": {
+    "RawMessages!rawmessages107": {
       "foxglovePanelTitle": "Misty said / played",
       "topicPath": "/wizard/said.data",
       "diffEnabled": false,
@@ -1446,7 +1460,7 @@
       "showFullMessageForDiff": false,
       "fontSize": 16
     },
-    "RawMessages!rawmessages107": {
+    "RawMessages!rawmessages108": {
       "foxglovePanelTitle": "Last action / head touch",
       "topicPath": "/wizard/last.data",
       "diffEnabled": false,
@@ -1455,7 +1469,7 @@
       "showFullMessageForDiff": false,
       "fontSize": 16
     },
-    "RawMessages!rawmessages108": {
+    "RawMessages!rawmessages109": {
       "foxglovePanelTitle": "Navigation status (fail_trigger: Parameters > /misty_nav)",
       "topicPath": "/nav/status.data",
       "diffEnabled": false,
@@ -1464,13 +1478,13 @@
       "showFullMessageForDiff": false,
       "fontSize": 16
     },
-    "Image!image109": {
+    "Image!image110": {
       "foxglovePanelTitle": "Misty camera",
       "imageMode": {
         "imageTopic": "/misty/camera/image/compressed"
       }
     },
-    "Teleop!teleop110": {
+    "Teleop!teleop111": {
       "foxglovePanelTitle": "DRIVE: overrides Nav2 (arrows = forward/back/turn)",
       "topic": "/cmd_vel",
       "publishRate": 10,
@@ -1491,7 +1505,7 @@
         "value": -1
       }
     },
-    "Teleop!teleop111": {
+    "Teleop!teleop112": {
       "foxglovePanelTitle": "HEAD / CAMERA (up/down = tilt, left/right = pan)",
       "topic": "/misty/head_cmd",
       "publishRate": 10,
@@ -1520,24 +1534,24 @@
   },
   "layout": {
     "first": {
-      "first": "Image!image109",
+      "first": "Image!image110",
       "second": {
         "first": {
-          "first": "Teleop!teleop110",
-          "second": "Teleop!teleop111",
+          "first": "Teleop!teleop111",
+          "second": "Teleop!teleop112",
           "direction": "row",
           "splitPercentage": 50.0
         },
         "second": {
           "first": {
-            "first": "Publish!publish96",
-            "second": "Publish!publish97",
+            "first": "Publish!publish97",
+            "second": "Publish!publish98",
             "direction": "row",
             "splitPercentage": 50.0
           },
           "second": {
-            "first": "Publish!publish98",
-            "second": "Publish!publish99",
+            "first": "Publish!publish99",
+            "second": "Publish!publish100",
             "direction": "row",
             "splitPercentage": 50.0
           },
@@ -1552,14 +1566,14 @@
     },
     "second": {
       "first": {
-        "first": "RawMessages!rawmessages104",
+        "first": "RawMessages!rawmessages105",
         "second": {
-          "first": "RawMessages!rawmessages105",
+          "first": "RawMessages!rawmessages106",
           "second": {
-            "first": "RawMessages!rawmessages106",
+            "first": "RawMessages!rawmessages107",
             "second": {
-              "first": "RawMessages!rawmessages107",
-              "second": "RawMessages!rawmessages108",
+              "first": "RawMessages!rawmessages108",
+              "second": "RawMessages!rawmessages109",
               "direction": "column",
               "splitPercentage": 50.0
             },
@@ -1580,20 +1594,20 @@
           "splitPercentage": 50.0
         },
         "second": {
-          "first": "Tab!tab95",
+          "first": "Tab!tab96",
           "second": {
             "first": {
-              "first": "Publish!publish100",
+              "first": "Publish!publish101",
               "second": {
-                "first": "Publish!publish101",
-                "second": "Publish!publish102",
+                "first": "Publish!publish102",
+                "second": "Publish!publish103",
                 "direction": "row",
                 "splitPercentage": 50.0
               },
               "direction": "row",
               "splitPercentage": 33.33333333333333
             },
-            "second": "Parameters!parameters103",
+            "second": "Parameters!parameters104",
             "direction": "row",
             "splitPercentage": 55.00000000000001
           },

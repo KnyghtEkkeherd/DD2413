@@ -14,7 +14,7 @@ bt_navigator:
     bt_loop_duration: 10
     filter_duration: 0.3
     default_server_timeout: 20
-    wait_for_service_timeout: 1000
+    wait_for_service_timeout: 10000     # ms; discovery is slow with ~25 nodes on the VM
     introspection_mode: "disabled"
     navigators: ["navigate_to_pose", "navigate_through_poses"]
     navigate_to_pose:
@@ -260,6 +260,6 @@ collision_monitor:
 lifecycle_manager_navigation:
   ros__parameters:
     autostart: true
-    bond_timeout: 4.0
+    bond_timeout: 0.0                  # 0 = no bond: heartbeats get lost on the busy VM and abort bringup
     node_names: ["controller_server", "smoother_server", "planner_server", "behavior_server",
                  "velocity_smoother", "collision_monitor", "bt_navigator"]

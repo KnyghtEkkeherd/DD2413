@@ -107,7 +107,8 @@ def main():
                       'Say custom text ([voice] text)', editable=True)
     tabs.append({'title': 'Custom text', 'layout': custom})
     nav_buttons = L.split([L.button('NAV_START', GREEN, '▶ NAV START'), L.button('NAV_GO', BLUE, 'NAV GO (continue)'),
-                           L.button('NAV_PAUSE', GREY, '❚❚ NAV PAUSE'), L.button('NAV_RESET', DARK, 'NAV RESET')], 'row')
+                           L.button('NAV_PAUSE', GREY, '❚❚ NAV PAUSE'), L.button('NAV_RESET', DARK, 'NAV RESET'),
+                           L.button('MAP_RESET', DARK, 'MAP RESET (forget learned markers)')], 'row')
     # topics of both stacks: Nav2 (nav2.launch.py) and the custom one (nav.launch.py)
     view3d = L.panel('3D', {'foxglovePanelTitle': 'Map: markers, robot, plan, costmap', 'followTf': 'map',
                             'topics': {t: {'visible': True} for t in

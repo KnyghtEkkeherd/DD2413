@@ -8,7 +8,8 @@
     wheel_odom                /misty/encoders -> /misty/wheel_odom
     ekf_odom / ekf_map        robot_localization (config/localization.yaml)
     aruco_tracker             aruco_opencv on the camera stream (markers:=aruco_opencv)
-    marker_localizer          marker sightings + marker_map -> pose fixes for ekf_map
+    marker_localizer          marker sightings -> pose fixes for ekf_map; learns unknown
+                              marker positions while driving (saved in ~/.ros/misty_marker_map.json)
     depthimage_to_laserscan   depth camera -> /scan (depth:=true)
     Nav2                      planner, controller (Regulated Pure Pursuit), behaviours,
                               BT navigator, velocity smoother, collision monitor
@@ -60,13 +61,19 @@ def setup(context):
     sim, depth = arg('sim'), arg('depth').lower() == 'true'
     markers = arg('markers') or ('json' if sim == '2d' else 'aruco_opencv')
 
-    # marker map: measured positions (real robot), or the simulated world's markers
+    # marker positions: measured ones (marker_map) are fixed, the rest are learned while driving.
+    # Simulation: learn the simulated world (known_markers:=true gives the true positions instead),
+    # and never touch the real room's saved map.
     marker_map = section(cfg, '/**').get('marker_map', '{}')
+    loc_extra = {}
     if sim in ('2d', 'gazebo'):
-        world = section(cfg, 'misty_gz').get('world', DEFAULT_WORLD) if sim == 'gazebo' else \
-            section(cfg, 'misty_nav_sim').get('world', DEFAULT_WORLD)
-        world = json.loads(world) if isinstance(world, str) else world
-        marker_map = json.dumps(world['markers'])
+        loc_extra['map_file'] = ''
+        marker_map = '{}'
+        if arg('known_markers').lower() == 'true':
+            world = section(cfg, 'misty_gz').get('world', DEFAULT_WORLD) if sim == 'gazebo' else \
+                section(cfg, 'misty_nav_sim').get('world', DEFAULT_WORLD)
+            world = json.loads(world) if isinstance(world, str) else world
+            marker_map = json.dumps(world['markers'])
     shared = {'marker_map': marker_map if isinstance(marker_map, str) else json.dumps(marker_map)}
 
     loc = str(share / 'config' / 'localization.yaml')
@@ -81,7 +88,7 @@ def setup(context):
         Node(package='robot_localization', executable='ekf_node', name='ekf_map', output='screen',
              parameters=[loc], remappings=[('odometry/filtered', 'odometry/global')]),
         Node(package='misty_ros', executable='marker_localizer', name='misty_marker_localizer', output='screen',
-             parameters=[params, shared, {'marker_source': markers}]),
+             parameters=[params, shared, {'marker_source': markers, **loc_extra}]),
         Node(package='misty_ros', executable='mission_node', name='misty_nav', output='screen',
              parameters=[params, shared]),
     ]
@@ -136,6 +143,8 @@ def generate_launch_description():
         DeclareLaunchArgument('markers', default_value='',
                               description='aruco_opencv | json (default: json for sim:=2d, else aruco_opencv)'),
         DeclareLaunchArgument('depth', default_value='false', description='depth camera -> /scan'),
+        DeclareLaunchArgument('known_markers', default_value='false',
+                              description='simulation only: give the localizer the true marker positions'),
         DeclareLaunchArgument('mux', default_value='true',
                               description='start teleop_relay + twist_mux (false when misty_foxglove.launch.py runs)'),
         OpaqueFunction(function=setup),

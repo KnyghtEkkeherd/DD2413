@@ -8,7 +8,9 @@ Starts
                              teleop relay, twist_mux, foxglove_bridge
   wizard_node                speech / sounds / emotions / gestures / session CSV
   study_node                 study state machine (config/study.yaml)
-  nav2.launch.py             Nav2 + robot_localization + marker detection + mission
+  follow_node (nav:=follow, default)  drive straight at the target marker when it's in view;
+                             stop in front of obstacles; the wizard steers otherwise
+  nav2.launch.py (nav:=nav2) Nav2 + robot_localization + marker mapping + mission
   (sim:=2d) nav_sim + scripts/fake_misty.py instead of the robot
 
 Who drives (twist_mux): the wizard's controller / Foxglove DRIVE panel always win,
@@ -52,11 +54,22 @@ def setup(context):
                                   'session_dir': arg('session_dir')}]),
         Node(package='misty_ros', executable='study_node', name='misty_study', output='screen',
              parameters=[{'study_config': study_cfg}]),
-        IncludeLaunchDescription(
+    ]
+    if arg('nav') == 'nav2':
+        actions.append(IncludeLaunchDescription(
             PythonLaunchDescriptionSource(str(share / 'launch' / 'nav2.launch.py')),
             launch_arguments={'misty_ip': ip, 'params_file': params, 'sim': sim, 'markers': arg('markers'),
-                              'depth': arg('depth'), 'mux': 'false'}.items()),
-    ]
+                              'depth': arg('depth'), 'mux': 'false'}.items()))
+    else:        # follow: drive straight at the target marker when it's in view (follow_node)
+        actions.append(Node(package='misty_ros', executable='follow_node', name='misty_nav', output='screen',
+                            parameters=[params]))
+        if sim == 'none':
+            src = 'opencv' if arg('markers') == 'aruco_opencv' else 'robot'   # -> /misty/markers
+            actions.append(Node(package='misty_ros', executable='sensors_node', name='misty_sensors',
+                                output='screen', parameters=[params, {'misty_ip': ip, 'aruco_source': src}]))
+        else:
+            actions.append(Node(package='misty_ros', executable='nav_sim', name='misty_nav_sim',
+                                output='screen', parameters=[params]))
     if sim != 'none':
         actions.append(ExecuteProcess(cmd=['python3', str(ws / 'scripts' / 'fake_misty.py'), ip.rsplit(':', 1)[1]],
                                       name='fake_misty', output='log'))
@@ -70,6 +83,9 @@ def generate_launch_description():
         DeclareLaunchArgument('participant_id', default_value=''),
         DeclareLaunchArgument('condition', default_value='', description='CONTROL or BREAKDOWN'),
         DeclareLaunchArgument('sim', default_value='none', description='none (robot) | 2d (dry run, no robot)'),
+        DeclareLaunchArgument('nav', default_value='follow',
+                              description='follow: drive at the target marker when in view (no map, no search); '
+                                          'nav2: Nav2 + localization + marker mapping'),
         DeclareLaunchArgument('markers', default_value='',
                               description='aruco_opencv (camera stream) | json (Misty on-board detector)'),
         DeclareLaunchArgument('depth', default_value='false', description='depth camera -> Nav2 obstacle scan'),

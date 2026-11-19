@@ -27,10 +27,12 @@ import time
 import numpy as np
 import rclpy
 from rclpy.node import Node
+from geometry_msgs.msg import Vector3
 from sensor_msgs.msg import CameraInfo, CompressedImage, Image, Imu, JointState, LaserScan, Range
 from std_msgs.msg import String
 
 from misty_ros.sdk import make_robot
+from misty_ros.markers import mat_to_quat
 from misty_ros.vision import ArucoDetector, camera_info, depth_to_scan
 
 try:
@@ -113,6 +115,8 @@ class MistySensors(Node):
         self.pub_tof = self.create_publisher(Range, 'misty/tof', 20)
         self.pub_markers = self.create_publisher(String, 'misty/markers', 10)
         self.pub_depth = self.create_publisher(LaserScan, 'misty/depth_scan', 5)
+        self.pub_head = self.create_publisher(Vector3, 'misty/head_state', 10)   # measured head (deg)
+        self.head = [0.0, 0.0, 0.0]                                           # pitch, roll, yaw
         self.pub_depth_img = self.create_publisher(Image, 'misty/depth/image', 2)          # for
         self.pub_depth_info = self.create_publisher(CameraInfo, 'misty/depth/camera_info', 2)  # depthimage_to_laserscan
         self.stop_flag = threading.Event()
@@ -140,7 +144,8 @@ class MistySensors(Node):
     # ---------------------------------------------------------- event socket
     def pubsub_loop(self):
         debounce = int(self.get_parameter('debounce_ms').value)
-        subs = {'nav_encoders': 'DriveEncoders', 'nav_imu': 'IMU', 'nav_tof': 'TimeOfFlight'}
+        subs = {'nav_encoders': 'DriveEncoders', 'nav_imu': 'IMU', 'nav_tof': 'TimeOfFlight',
+                'nav_actuator': 'ActuatorPosition'}
         if self.source == 'robot':
             subs['nav_artag'] = 'ArTagDetection'
         warned = False
@@ -199,7 +204,7 @@ class MistySensors(Node):
             return
         name = data.get('eventname')
         handler = {'nav_encoders': self.on_encoders, 'nav_imu': self.on_imu,
-                   'nav_tof': self.on_tof, 'nav_artag': self.on_artag}.get(name)
+                   'nav_tof': self.on_tof, 'nav_artag': self.on_artag, 'nav_actuator': self.on_actuator}.get(name)
         if handler is not None:
             self.counts[name[4:]] = self.counts.get(name[4:], 0) + 1
             try:
@@ -209,17 +214,29 @@ class MistySensors(Node):
                                           throttle_duration_sec=5.0)
 
     def on_encoders(self, m):
-        s = float(self.get_parameter('encoder_scale').value)
-        left = first(m, 'leftdistance', 'leftencoder', 'left')
-        right = first(m, 'rightdistance', 'rightencoder', 'right')
-        if left is None or right is None:
-            raise KeyError('leftDistance/rightDistance')
+        """Misty resets leftDistance / rightDistance at every new drive command (Nav2 sends
+        ~10 per second), so the distances can't be differenced. The track velocities are
+        continuous: integrate them into ever-growing wheel distances instead."""
+        sc = float(self.get_parameter('encoder_scale').value)
+        vl = first(m, 'leftvelocity')
+        vr = first(m, 'rightvelocity')
+        if vl is None or vr is None:
+            raise KeyError('leftVelocity/rightVelocity')
+        vl, vr = float(vl) * sc, float(vr) * sc
+        now = time.monotonic()
+        last = getattr(self, 'enc_last', None)
+        if last is not None:
+            dt = min(now - last[0], 0.5)               # trapezoid; cap gaps (lost events)
+            self.enc_pos[0] += (vl + last[1]) / 2 * dt
+            self.enc_pos[1] += (vr + last[2]) / 2 * dt
+        else:
+            self.enc_pos = [0.0, 0.0]
+        self.enc_last = (now, vl, vr)
         js = JointState()
         js.header.stamp = self.get_clock().now().to_msg()
         js.name = ['left_wheel', 'right_wheel']
-        js.position = [float(left) * s, float(right) * s]
-        js.velocity = [float(first(m, 'leftvelocity', default=0.0)) * s,
-                       float(first(m, 'rightvelocity', default=0.0)) * s]
+        js.position = list(self.enc_pos)
+        js.velocity = [vl, vr]
         self.pub_enc.publish(js)
 
     def on_imu(self, m):
@@ -259,12 +276,32 @@ class MistySensors(Node):
         r.range = float(dist) if valid else r.max_range     # max_range = nothing seen
         self.pub_tof.publish(r)
 
+    def on_actuator(self, m):
+        """ActuatorPosition: ahp / ahr / ahy = head pitch / roll / yaw (degrees, yaw + = left).
+        Published on /misty/head_state (x = pitch, y = roll, z = yaw) for the camera direction."""
+        idx = {'ahp': 0, 'ahr': 1, 'ahy': 2}.get(str(first(m, 'sensorid', default='')).lower())
+        if idx is None or first(m, 'value') is None:
+            return
+        self.head[idx] = float(m['value'])
+        self.pub_head.publish(Vector3(x=self.head[0], y=self.head[1], z=self.head[2]))
+
     def on_artag(self, m):
-        tag_id = first(m, 'id', 'tagid', 'artagid', 'markerid')
+        """Misty's on-board detector: tagId + homogeneousMatrix (4x4, column-major, metres; marker
+        pose in the camera frame, same convention as OpenCV / aruco_opencv). Older firmware may
+        send a plain translation instead."""
+        tag_id = first(m, 'tagid', 'id', 'artagid', 'markerid')
+        hm = m.get('homogeneousmatrix')
+        s = float(self.get_parameter('robot_tag_scale').value)
+        if tag_id is not None and isinstance(hm, list) and len(hm) == 16:
+            T = np.array(hm, dtype=float).reshape(4, 4).T           # column-major -> row-major
+            qx, qy, qz, qw = mat_to_quat(T[:3, :3])
+            x, y, z = (T[:3, 3] * s).tolist()
+            self.publish_markers('robot', [{'id': int(tag_id), 'x': x, 'y': y, 'z': z,
+                                            'qx': qx, 'qy': qy, 'qz': qz, 'qw': qw}])
+            return
         xyz = parse_xyz(first(m, 'translation', 'position', 'tvec', default=m))
         if tag_id is None or xyz is None:
-            raise KeyError('id/translation')
-        s = float(self.get_parameter('robot_tag_scale').value)
+            raise KeyError('tagId/homogeneousMatrix')
         self.publish_markers('robot', [{'id': int(tag_id), 'x': xyz[0] * s, 'y': xyz[1] * s, 'z': xyz[2] * s}])
 
     def publish_markers(self, source, detections):

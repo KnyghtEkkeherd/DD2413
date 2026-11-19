@@ -36,6 +36,7 @@ setup(
             'mission_node = misty_ros.mission_node:main',
             'teleop_relay = misty_ros.teleop_relay_node:main',
             'study_node = misty_ros.study_node:main',
+            'follow_node = misty_ros.follow_node:main',
         ],
     },
 )
