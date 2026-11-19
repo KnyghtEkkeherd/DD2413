@@ -700,13 +700,31 @@
     "Publish!publish54": {
       "topicName": "/wizard/event",
       "datatype": "std_msgs/msg/String",
+      "buttonText": "Face tracking ON",
+      "buttonTooltip": "Send FACE_TRACK_ON",
+      "buttonColor": "#2e9e5b",
+      "advancedView": false,
+      "value": "{\"data\": \"FACE_TRACK_ON\"}"
+    },
+    "Publish!publish55": {
+      "topicName": "/wizard/event",
+      "datatype": "std_msgs/msg/String",
+      "buttonText": "Face tracking OFF",
+      "buttonTooltip": "Send FACE_TRACK_OFF",
+      "buttonColor": "#8a1c1c",
+      "advancedView": false,
+      "value": "{\"data\": \"FACE_TRACK_OFF\"}"
+    },
+    "Publish!publish56": {
+      "topicName": "/wizard/event",
+      "datatype": "std_msgs/msg/String",
       "buttonText": "■ STOP all",
       "buttonTooltip": "Send STOP",
       "buttonColor": "#8a1c1c",
       "advancedView": false,
       "value": "{\"data\": \"STOP\"}"
     },
-    "Publish!publish55": {
+    "Publish!publish57": {
       "topicName": "/wizard/event",
       "datatype": "std_msgs/msg/String",
       "buttonText": "START session",
@@ -715,7 +733,7 @@
       "advancedView": false,
       "value": "{\"data\": \"START\"}"
     },
-    "Publish!publish56": {
+    "Publish!publish58": {
       "topicName": "/wizard/event",
       "datatype": "std_msgs/msg/String",
       "buttonText": "END session",
@@ -724,7 +742,7 @@
       "advancedView": false,
       "value": "{\"data\": \"END\"}"
     },
-    "Publish!publish57": {
+    "Publish!publish59": {
       "topicName": "/wizard/event",
       "datatype": "std_msgs/msg/String",
       "buttonText": "Log touch (sim)",
@@ -733,10 +751,10 @@
       "advancedView": false,
       "value": "{\"data\": \"TOUCH_SIM\"}"
     },
-    "Parameters!parameters58": {
+    "Parameters!parameters60": {
       "title": "Session: set participant_id + condition, then START"
     },
-    "RawMessages!rawmessages59": {
+    "RawMessages!rawmessages61": {
       "foxglovePanelTitle": "Session",
       "topicPath": "/wizard/session.data",
       "diffEnabled": false,
@@ -745,7 +763,7 @@
       "showFullMessageForDiff": false,
       "fontSize": 18
     },
-    "RawMessages!rawmessages60": {
+    "RawMessages!rawmessages62": {
       "foxglovePanelTitle": "Misty said / played",
       "topicPath": "/wizard/said.data",
       "diffEnabled": false,
@@ -754,7 +772,7 @@
       "showFullMessageForDiff": false,
       "fontSize": 16
     },
-    "RawMessages!rawmessages61": {
+    "RawMessages!rawmessages63": {
       "foxglovePanelTitle": "Last action / head touch",
       "topicPath": "/wizard/last.data",
       "diffEnabled": false,
@@ -763,7 +781,7 @@
       "showFullMessageForDiff": false,
       "fontSize": 16
     },
-    "RawMessages!rawmessages62": {
+    "RawMessages!rawmessages64": {
       "foxglovePanelTitle": "Next route segment",
       "topicPath": "/wizard/route.data",
       "diffEnabled": false,
@@ -772,13 +790,22 @@
       "showFullMessageForDiff": false,
       "fontSize": 16
     },
-    "Image!image63": {
+    "RawMessages!rawmessages65": {
+      "foxglovePanelTitle": "Face tracking status",
+      "topicPath": "/misty/face_tracking/status.data",
+      "diffEnabled": false,
+      "diffMethod": "custom",
+      "diffTopicPath": "",
+      "showFullMessageForDiff": false,
+      "fontSize": 16
+    },
+    "Image!image66": {
       "foxglovePanelTitle": "Misty camera",
       "imageMode": {
         "imageTopic": "/misty/camera/image/compressed"
       }
     },
-    "Teleop!teleop64": {
+    "Teleop!teleop67": {
       "foxglovePanelTitle": "DRIVE (arrows = forward/back/turn)",
       "topic": "/cmd_vel",
       "publishRate": 5,
@@ -799,7 +826,7 @@
         "value": -1
       }
     },
-    "Teleop!teleop65": {
+    "Teleop!teleop68": {
       "foxglovePanelTitle": "HEAD / CAMERA (up/down = tilt, left/right = pan)",
       "topic": "/misty/head_cmd",
       "publishRate": 10,
@@ -828,11 +855,11 @@
   },
   "layout": {
     "first": {
-      "first": "Image!image63",
+      "first": "Image!image66",
       "second": {
         "first": {
-          "first": "Teleop!teleop64",
-          "second": "Teleop!teleop65",
+          "first": "Teleop!teleop67",
+          "second": "Teleop!teleop68",
           "direction": "row",
           "splitPercentage": 50.0
         },
@@ -854,38 +881,28 @@
             "splitPercentage": 25.0
           },
           "second": {
-            "first": "Publish!publish51",
-            "second": {
-              "first": "Publish!publish52",
+            "first": {
+              "first": "Publish!publish51",
               "second": {
-                "first": "Publish!publish53",
-                "second": "Publish!publish54",
+                "first": "Publish!publish52",
+                "second": {
+                  "first": "Publish!publish53",
+                  "second": "Publish!publish54",
+                  "direction": "row",
+                  "splitPercentage": 50.0
+                },
                 "direction": "row",
-                "splitPercentage": 50.0
+                "splitPercentage": 33.33333333333333
               },
               "direction": "row",
-              "splitPercentage": 33.33333333333333
+              "splitPercentage": 25.0
             },
-            "direction": "row",
-            "splitPercentage": 25.0
-          },
-          "direction": "column",
-          "splitPercentage": 50.0
-        },
-        "direction": "column",
-        "splitPercentage": 56.00000000000001
-      },
-      "direction": "column",
-      "splitPercentage": 50.0
-    },
-    "second": {
-      "first": {
-        "first": "RawMessages!rawmessages59",
-        "second": {
-          "first": "RawMessages!rawmessages60",
-          "second": {
-            "first": "RawMessages!rawmessages61",
-            "second": "RawMessages!rawmessages62",
+            "second": {
+              "first": "Publish!publish55",
+              "second": "Publish!publish56",
+              "direction": "row",
+              "splitPercentage": 50.0
+            },
             "direction": "column",
             "splitPercentage": 50.0
           },
@@ -893,7 +910,32 @@
           "splitPercentage": 33.33333333333333
         },
         "direction": "column",
-        "splitPercentage": 25.0
+        "splitPercentage": 50.0
+      },
+      "direction": "column",
+      "splitPercentage": 48.0
+    },
+    "second": {
+      "first": {
+        "first": "RawMessages!rawmessages61",
+        "second": {
+          "first": "RawMessages!rawmessages62",
+          "second": {
+            "first": "RawMessages!rawmessages63",
+            "second": {
+              "first": "RawMessages!rawmessages64",
+              "second": "RawMessages!rawmessages65",
+              "direction": "column",
+              "splitPercentage": 50.0
+            },
+            "direction": "column",
+            "splitPercentage": 33.33333333333333
+          },
+          "direction": "column",
+          "splitPercentage": 25.0
+        },
+        "direction": "column",
+        "splitPercentage": 20.0
       },
       "second": {
         "first": {
@@ -906,28 +948,28 @@
           "first": "Tab!tab46",
           "second": {
             "first": {
-              "first": "Publish!publish55",
+              "first": "Publish!publish57",
               "second": {
-                "first": "Publish!publish56",
-                "second": "Publish!publish57",
+                "first": "Publish!publish58",
+                "second": "Publish!publish59",
                 "direction": "row",
                 "splitPercentage": 50.0
               },
               "direction": "row",
               "splitPercentage": 33.33333333333333
             },
-            "second": "Parameters!parameters58",
+            "second": "Parameters!parameters60",
             "direction": "row",
             "splitPercentage": 55.00000000000001
           },
           "direction": "column",
-          "splitPercentage": 77.14285714285715
+          "splitPercentage": 75.38461538461539
         },
         "direction": "column",
-        "splitPercentage": 12.5
+        "splitPercentage": 13.333333333333334
       },
       "direction": "column",
-      "splitPercentage": 20.0
+      "splitPercentage": 25.0
     },
     "direction": "row",
     "splitPercentage": 42.0

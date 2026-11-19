@@ -46,3 +46,18 @@ misty_camera:
     fps: 2.0
     width: 640
     height: 480
+
+
+misty_face_tracker:
+  ros__parameters:
+    deadband_deg: 4.0
+    gain: 0.35
+    max_command: 0.30
+    head_step_deg: 13.0
+    yaw_sign: 1.0
+    pitch_sign: -1.0
+    event_debounce_ms: 700
+    control_period_s: 0.10
+    enable_settle_s: 1.5
+    max_face_age_s: 1.5
+    request_timeout: 3.0

@@ -85,23 +85,27 @@ def main():
     motion = [L.button('NEXT_SEGMENT', BLUE, 'Next segment ▶'), L.button('LOOK_BACK', BLUE, 'Look back'),
               L.button('HEAD_CENTER', GREY, 'Head centre'), L.button('ROUTE_RESET', GREY, 'Route reset'),
               L.button('NUDGE_L', GREY, '◀ Nudge L'), L.button('NUDGE_FWD', GREY, '▲ Nudge fwd'),
-              L.button('NUDGE_R', GREY, 'Nudge R ▶'), L.button('STOP', DARK, '■ STOP all')]
+              L.button('NUDGE_R', GREY, 'Nudge R ▶'),
+              L.button('FACE_TRACK_ON', GREEN, 'Face tracking ON'),
+              L.button('FACE_TRACK_OFF', DARK, 'Face tracking OFF'),
+              L.button('STOP', DARK, '■ STOP all')]
     session = L.split([L.button('START', BLUE, 'START session'), L.button('END', DARK, 'END session'),
                        L.button('TOUCH_SIM', GREY, 'Log touch (sim)')], 'row')
     params = L.panel('Parameters', {'title': 'Session: set participant_id + condition, then START'})
     status = L.split([L.status('/wizard/session', 18, 'Session'),
                       L.status('/wizard/said', 16, 'Misty said / played'),
                       L.status('/wizard/last', 16, 'Last action / head touch'),
-                      L.status('/wizard/route', 16, 'Next route segment')], 'column')
+                      L.status('/wizard/route', 16, 'Next route segment'),
+                      L.status('/misty/face_tracking/status', 16, 'Face tracking status')], 'column')
     camera = L.panel('Image', {'foxglovePanelTitle': 'Misty camera',
                                'imageMode': {'imageTopic': '/misty/camera/image/compressed'}})
     left = L.split([camera,
                     L.split([L.teleop('/cmd_vel', 'DRIVE (arrows = forward/back/turn)', 5),
                              L.teleop('/misty/head_cmd', 'HEAD / CAMERA (up/down = tilt, left/right = pan)', 10)],
                             'row'),
-                    L.grid(motion, 4)], 'column', [50, 28, 22])
+                    L.grid(motion, 4)], 'column', [48, 26, 26])
     right = L.split([status, L.split(main_buttons, 'row'), tab_panel, L.split([session, params], 'row', [55, 45])],
-                    'column', [20, 10, 54, 16])
+                    'column', [25, 10, 49, 16])
     out = ROOT / 'foxglove' / 'misty_wizard_layout.json'
     out.parent.mkdir(exist_ok=True)
     out.write_text(json.dumps({'configById': L.configs, 'globalVariables': {}, 'userNodes': {},

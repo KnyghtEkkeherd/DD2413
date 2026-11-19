@@ -71,6 +71,8 @@ class MistyWizard(Node):
         self.declare_parameter('reactions', str(share / 'reactions.json'))
         self.declare_parameter('session_dir', str(Path.home() / 'misty_ws' / 'sessions'))
         self.declare_parameter('request_timeout', 2.0)
+        self.declare_parameter('face_tracking_start_pitch_deg', -10.0)
+        self.declare_parameter('face_tracking_start_velocity', 90.0)
 
         self.ip = self.get_parameter('misty_ip').value
         if not self.ip:
@@ -359,11 +361,14 @@ class MistyWizard(Node):
         if self.call('drive', self.misty.drive_time, **kw):
             self.note(label)
 
-    def head(self, yaw):
+    def head(self, yaw, pitch=0.0, velocity=None):
         lb = self.cfg['look_back']
-        self.call('move_head', self.misty.move_head, pitch=0.0, roll=0.0, yaw=float(yaw),
-                  velocity=float(lb['head_velocity']), units='degrees')
-        self.head_pub.publish(Vector3(x=0.0, y=0.0, z=float(yaw)))  # keep head teleop in sync
+        speed = float(lb['head_velocity']) if velocity is None else float(velocity)
+        pitch = max(-40.0, min(26.0, float(pitch)))  # negative pitches look upward
+        yaw = max(-81.0, min(81.0, float(yaw)))
+        self.call('move_head', self.misty.move_head, pitch=pitch, roll=0.0, yaw=yaw,
+                  velocity=speed, units='degrees')
+        self.head_pub.publish(Vector3(x=pitch, y=0.0, z=yaw))  # keep teleop in sync
 
     def sleep(self, seconds, until=None):
         """Wait inside a sequence; raises Cancelled on STOP."""
@@ -471,6 +476,14 @@ class MistyWizard(Node):
         elif name in ('REACT', 'SAY'):
             rid, _, idx = arg.partition(':')
             self.react(rid.strip(), int(idx) if idx.strip().isdigit() else None)
+        elif name in ('FACE_TRACK_ON', 'FACE_TRACK_OFF'):
+            self.log(source, name)
+            if name == 'FACE_TRACK_ON':
+                # Aim slightly up and straight ahead before auto-tracking starts.
+                self.head(0.0,
+                          pitch=self.get_parameter('face_tracking_start_pitch_deg').value,
+                          velocity=self.get_parameter('face_tracking_start_velocity').value)
+            self.note(f'{name}: see face tracking status panel')
         elif name == 'FAILURE':
             self.react('FAILURE')
         elif name == 'SAY_TEXT':

@@ -2,6 +2,10 @@
 misty_venv/
 __pycache__/
 *.egg-info/
+.gradle/
+.idea/
+local.properties
+credentials.gradle
 
 # colcon
 build/

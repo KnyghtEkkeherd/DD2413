@@ -23,6 +23,8 @@ def generate_launch_description():
     args = [
         DeclareLaunchArgument('misty_ip', default_value=EnvironmentVariable('MISTY_IP', default_value=''),
                               description="Misty's IP address (defaults to $MISTY_IP)"),
+        DeclareLaunchArgument('camera', default_value='true',
+                              description='Start camera image polling (disable if face detection competes)'),
         DeclareLaunchArgument('params_file', default_value=str(share / 'config' / 'misty_params.yaml'),
                               description='Speeds / gains / camera settings'),
         DeclareLaunchArgument('port', default_value='8765', description='Foxglove WebSocket port'),
@@ -40,6 +42,7 @@ def generate_launch_description():
     params = LaunchConfiguration('params_file')
 
     camera = Node(package='misty_ros', executable='camera_node', name='misty_camera', output='screen',
+                  condition=IfCondition(LaunchConfiguration('camera')),
                   parameters=[params, {'misty_ip': ip}])
     teleop = Node(package='misty_ros', executable='teleop_node', name='misty_teleop', output='screen',
                   parameters=[params, {'misty_ip': ip}])

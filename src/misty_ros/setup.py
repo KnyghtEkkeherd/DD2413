@@ -23,6 +23,7 @@ setup(
             'camera_node = misty_ros.camera_node:main',
             'teleop_node = misty_ros.teleop_node:main',
             'wizard_node = misty_ros.wizard_node:main',
+            'face_tracker = misty_ros.face_tracker:main',
             'keyboard_teleop = misty_ros.keyboard_teleop:main',
             'gamepad_teleop = misty_ros.gamepad_teleop:main',
         ],
