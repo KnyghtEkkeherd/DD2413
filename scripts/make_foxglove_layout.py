@@ -133,8 +133,8 @@ def main():
                       L.status('/nav/status', 16, 'Navigation status (fail_trigger: Parameters > /misty_nav)'),
                       L.status('/misty/face_tracking/status', 16, 'Face tracking status')],
                      'column')
-    camera = L.panel('Image', {'foxglovePanelTitle': 'Misty camera',
-                               'imageMode': {'imageTopic': '/misty/camera/image/compressed'}})
+    camera = L.panel('Image', {'foxglovePanelTitle': 'Misty camera (markers + phase)',
+                               'imageMode': {'imageTopic': '/misty/camera/overlay/compressed'}})
     left = L.split([camera,
                     L.split([L.teleop('/cmd_vel', 'DRIVE: overrides Nav2 (arrows = forward/back/turn)', 10),
                              L.teleop('/misty/head_cmd', 'HEAD / CAMERA (up/down = tilt, left/right = pan)', 10)],

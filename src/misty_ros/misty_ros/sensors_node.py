@@ -127,6 +127,10 @@ class MistySensors(Node):
             self.create_subscription(CompressedImage, 'misty/camera/image/compressed', self.on_image, 2)
         if self.get_parameter('depth_enabled').value:
             threading.Thread(target=self.depth_loop, daemon=True).start()
+        if self.source == 'robot':
+            # Misty's face detection (face tracker, on at each marker) can stop her marker detector:
+            # restart it when a drive starts or face tracking is switched off
+            self.create_subscription(String, 'wizard/event', self.on_wizard_event, 10)
         if websocket is None:
             self.get_logger().error('python3-websocket missing: no encoder / IMU / ToF / on-board ArUco data')
         else:
@@ -177,6 +181,16 @@ class MistySensors(Node):
                     except Exception:
                         pass
             self.stop_flag.wait(3.0)
+
+    def on_wizard_event(self, msg):
+        e = msg.data.strip().upper()
+        if e.startswith(('NAV_GOTO', 'NAV_START', 'NAV_GO', 'FACE_TRACK_OFF')):
+            def restart():
+                self.stop_flag.wait(1.5)            # let face detection stop first
+                if not self.stop_flag.is_set():
+                    self.start_robot_detector()
+                    self.get_logger().info(f'ArUco detector (re)started ({e})')
+            threading.Thread(target=restart, daemon=True).start()
 
     def start_robot_detector(self):
         try:

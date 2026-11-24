@@ -67,6 +67,7 @@ class Follower(Node):
         P('wait_after_fail', True)
         P('head_pitch_deg', 0.0)                # head pose while driving (camera forward)
         P('head_tolerance_deg', 5.0)            # re-centre the head when it's further off than this
+        P('keep_head_period_s', 1.0)            # while driving: re-send the neutral head pose this often
         P('flip_x', False)                      # True if the detector's x axis points left
         P('standoff_m', 0.6)                    # stop this far from the marker (camera to marker)
         P('arrive_tol_m', 0.08)
@@ -81,9 +82,12 @@ class Follower(Node):
         P('turn_rate', 0.3)                     # rad/s for turns in place
         P('turn_fraction', 0.6)                 # turn this share of the angle, then settle and look
         P('settle_s', 0.8)                      # stand still after an in-place turn
-        P('lost_timeout_s', 1.0)                # no detection for this long: target lost
+        P('lost_timeout_s', 2.0)                # no detection for this long: target lost (Misty's
+                                                # detector can pause for a second)
         P('reacquire_s', 5.0)                   # lost this recently: turn back to where it must be
         P('search_on_new_target', True)         # new target not in view: turn in place to find it
+        P('start_grace_s', 3.0)                 # at the start of a drive: stand still and look this long
+                                                # before searching (Misty's detector may be restarting)
         P('search_rate', 0.3)                   # rad/s, continuous, one full turn at most
         P('search_direction', 1.0)              # +1 = left, -1 = right
         P('stop_m', 0.35)                       # front ToF closer than this: obstacle
@@ -109,6 +113,7 @@ class Follower(Node):
         self.create_subscription(Imu, 'misty/imu', self.on_imu, 50)
 
         self.state, self.goto, self.index, self.paused_from = 'IDLE', None, 0, None
+        self.begin_time = 0.0
         self.seen = {}                          # id -> (time, x right, z forward, IMU yaw at detection)
         self.tof = {}                           # frame -> (time, range, max_range)
         self.yaw = None
@@ -218,6 +223,7 @@ class Follower(Node):
             self.stop()
             return self.set_status('DONE: mission complete')
         self.face_tracking(False)               # the camera must look for the marker, not faces
+        self.begin_time = time.monotonic()
         self.center_head(force=True)
         self.state = 'FOLLOW'
         self.set_status(f'FOLLOW marker {mid}')
@@ -227,12 +233,18 @@ class Follower(Node):
             self.wizard.publish(String(data='FACE_TRACK_ON' if on else 'FACE_TRACK_OFF'))
 
     def center_head(self, force=False):
-        """The camera is in the head: keep it neutral while driving (re-centre at most 1/s)."""
-        _, pitch, yaw = self.head
+        """The camera is in the head: actively hold it neutral while driving. The neutral pose is
+        re-sent every keep_head_period_s regardless (the head drifts while driving), right away
+        when the measured head (/misty/head_state) is off by more than head_tolerance_deg, and
+        always at the start of a drive (force)."""
+        now = time.monotonic()
+        t, pitch, yaw = self.head
         tol, pitch0 = float(self.p('head_tolerance_deg')), float(self.p('head_pitch_deg'))
-        if (force or abs(yaw) > tol or abs(pitch - pitch0) > tol) and time.monotonic() - self.last_center > 1.0:
+        off = now - t < 2.0 and (abs(yaw) > tol or abs(pitch - pitch0) > tol)
+        since = now - self.last_center
+        if force or (off and since > 0.4) or since >= float(self.p('keep_head_period_s')):
             self.head_goal.publish(Vector3(x=pitch0, y=0.0, z=0.0))
-            self.last_center = time.monotonic()
+            self.last_center = now
 
     def turned_since(self, yaw0):
         return 0.0 if yaw0 is None or self.yaw is None else wrap(self.yaw - yaw0)
@@ -336,6 +348,10 @@ class Follower(Node):
                 if abs(bearing) > math.radians(float(self.p('center_deadband_deg'))):
                     self.start_turn(bearing * float(self.p('turn_fraction')), 0.7 * float(self.p('turn_rate')))
                     return self.set_status(f'REACQUIRE marker {mid}: turning back {math.degrees(bearing):+.0f} deg')
+            if self.phase == 'track' and now - self.begin_time < float(self.p('start_grace_s')):
+                if self.moving:
+                    self.stop()
+                return self.set_status(f'LOOKING for marker {mid}')
             if self.phase == 'track' and not self.searched and self.p('search_on_new_target'):
                 self.searched = True
                 self.search_turned, self.search_last_yaw, self.look_since = 0.0, self.yaw, now

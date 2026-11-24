@@ -76,6 +76,8 @@ class MistyWizard(Node):
         self.declare_parameter('request_timeout', 2.0)
         self.declare_parameter('face_tracking_start_pitch_deg', -10.0)
         self.declare_parameter('face_tracking_start_velocity', 90.0)
+        self.declare_parameter('face_tracking_aim_head', False)   # FACE_TRACK_ON: tilt the head up first
+                                                                  # (only for face_tracker mode: head)
 
         self.ip = self.get_parameter('misty_ip').value
         if not self.ip:
@@ -557,7 +559,7 @@ class MistyWizard(Node):
             self.react(rid.strip(), int(idx) if idx.strip().isdigit() else None)
         elif name in ('FACE_TRACK_ON', 'FACE_TRACK_OFF'):
             self.log(source, name)
-            if name == 'FACE_TRACK_ON':
+            if name == 'FACE_TRACK_ON' and self.get_parameter('face_tracking_aim_head').value:
                 # Aim slightly up and straight ahead before auto-tracking starts.
                 self.head(0.0,
                           pitch=self.get_parameter('face_tracking_start_pitch_deg').value,

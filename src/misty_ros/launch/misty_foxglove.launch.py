@@ -55,6 +55,8 @@ def generate_launch_description():
                   parameters=[params, {'misty_ip': ip}])
     teleop = Node(package='misty_ros', executable='teleop_node', name='misty_teleop', output='screen',
                   condition=robot, parameters=[params, {'misty_ip': ip}])
+    overlay = Node(package='misty_ros', executable='camera_overlay', name='misty_camera_overlay', output='screen',
+                   condition=IfCondition(LaunchConfiguration('camera')), parameters=[params])
     relay = Node(package='misty_ros', executable='teleop_relay', name='misty_teleop_relay', output='screen',
                  parameters=[params])
     mux = Node(package='twist_mux', executable='twist_mux', name='twist_mux', output='screen',
@@ -72,4 +74,4 @@ def generate_launch_description():
         name='gamepad_sender', output='screen', additional_env={'SDL_VIDEODRIVER': 'dummy'},
         condition=IfCondition(LaunchConfiguration('gamepad_local')))
 
-    return LaunchDescription(args + [camera, teleop, relay, mux, bridge, gamepad, gamepad_sender])
+    return LaunchDescription(args + [camera, overlay, teleop, relay, mux, bridge, gamepad, gamepad_sender])

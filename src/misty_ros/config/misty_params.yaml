@@ -81,6 +81,14 @@ misty_camera:
 # Started with:  ros2 launch misty_ros wizard.launch.py misty_ip:=... nav:=true
 # (simulator:    ros2 launch misty_ros nav.launch.py sim:=true)
 
+misty_camera_overlay:
+  ros__parameters:
+    # camera feed with ArUco outlines / ids / distances and the current phase, for Foxglove
+    # (/misty/camera/overlay/compressed). Keep these equal to misty_sensors.
+    aruco_dictionary: 0
+    marker_size_m: 0.15
+    max_rate: 8.0           # overlay frames per second, at most (CPU)
+
 misty_nav:
   ros__parameters:
     # follow mode (default): obstacle avoidance -- front ToF closer than stop_m: turn
@@ -116,6 +124,7 @@ misty_nav:
     center_deadband_deg: 6.0
     turn_only_deg: 20.0     # drive window; further off-centre: turn in place, then settle
     turn_rate: 0.3          # rad/s, turns in place
+    search_direction: -1.0  # searching for a marker not in view: -1 = turn right (clockwise), +1 = left
     standoff_m: 0.6         # stop this far in front of a marker
     arrive_tol_m: 0.08
     # old custom navigator only:
@@ -182,6 +191,14 @@ misty_gz:
 
 misty_face_tracker:
   ros__parameters:
+    # eyes: the head stays still and Misty's eyes look towards the face (eye images);
+    # head: the head turns towards the face. If the eyes look the wrong way, swap
+    # eyes_left / eyes_right (or set yaw_sign: -1.0).
+    mode: eyes
+    eyes_left: e_ContentLeft.jpg      # face on Misty's left
+    eyes_right: e_ContentRight.jpg    # face on Misty's right
+    eyes_center: e_DefaultContent.jpg
+    eyes_threshold_deg: 8.0
     deadband_deg: 4.0
     gain: 0.35
     max_command: 0.30

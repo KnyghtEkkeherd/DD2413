@@ -1506,9 +1506,9 @@
       "fontSize": 16
     },
     "Image!image113": {
-      "foxglovePanelTitle": "Misty camera",
+      "foxglovePanelTitle": "Misty camera (markers + phase)",
       "imageMode": {
-        "imageTopic": "/misty/camera/image/compressed"
+        "imageTopic": "/misty/camera/overlay/compressed"
       }
     },
     "Teleop!teleop114": {

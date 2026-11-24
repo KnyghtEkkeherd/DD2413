@@ -53,6 +53,15 @@ class MistyFaceTracker(Node):
         self.declare_parameter('max_face_age_s', 1.5)
         self.declare_parameter('request_timeout', 3.0)
         self.declare_parameter('reconnect_delay_s', 2.0)
+        # mode: eyes = the head stays still, Misty's eyes look towards the face (eye images);
+        #       head = the head turns towards the face (/misty/head_cmd)
+        self.declare_parameter('mode', 'eyes')
+        self.declare_parameter('eyes_center', 'e_DefaultContent.jpg')
+        self.declare_parameter('eyes_left', 'e_ContentLeft.jpg')     # face on Misty's left
+        self.declare_parameter('eyes_right', 'e_ContentRight.jpg')   # face on Misty's right
+        self.declare_parameter('eyes_threshold_deg', 8.0)    # face further off-centre: look that way
+        self.declare_parameter('eyes_hysteresis_deg', 3.0)   # look back to centre below threshold - this
+        self.declare_parameter('eyes_return_s', 2.0)         # face lost this long: eyes back to centre
 
         self.ip = str(self.get_parameter('misty_ip').value).strip()
         self.dry_run = bool(self.get_parameter('dry_run').value)
@@ -80,6 +89,8 @@ class MistyFaceTracker(Node):
         self.shutdown_flag = threading.Event()
         self.last_status = None
         self.last_nudge_time = 0.0
+        self.eyes_side = None                # 'left' | 'center' | 'right' currently shown (None = untouched)
+        self.eyes_busy = threading.Lock()
         self.create_timer(max(0.05, float(self.param('control_period_s'))), self.control_tick)
         self.create_timer(1.0, self.publish_status)
         self.publish_status()
@@ -201,6 +212,8 @@ class MistyFaceTracker(Node):
                     self.set_connection_state(generation, 'connecting')
 
     def control_tick(self):
+        if str(self.param('mode')).lower() == 'eyes':
+            return self.eyes_tick()
         with self.lock:
             if not self.enabled:
                 return
@@ -232,6 +245,53 @@ class MistyFaceTracker(Node):
             cmd.linear.x = linear
             cmd.angular.z = angular
             self.head_pub.publish(cmd)
+
+    # ------------------------------------------------------------- eyes mode
+    def eyes_tick(self):
+        with self.lock:
+            enabled, face, state = self.enabled, self.face, self.connection_state
+        if not enabled:
+            if self.eyes_side not in (None, 'center'):
+                self.show_eyes('center')      # tracking switched off: look straight again
+            return
+        if not self.dry_run and state != 'connected':
+            return
+        now = time.monotonic()
+        if face is None or now - face[2] > float(self.param('eyes_return_s')):
+            if self.eyes_side not in (None, 'center'):
+                self.show_eyes('center')
+            return
+        # yaw_sign * bearing > 0 = face on Misty's left (same convention as head mode)
+        b = float(self.param('yaw_sign')) * face[0]
+        th, hyst = float(self.param('eyes_threshold_deg')), float(self.param('eyes_hysteresis_deg'))
+        side = self.eyes_side or 'center'
+        if b > th:
+            side = 'left'
+        elif b < -th:
+            side = 'right'
+        elif abs(b) < th - hyst:
+            side = 'center'
+        if side != self.eyes_side:
+            self.show_eyes(side)
+
+    def show_eyes(self, side):
+        self.eyes_side = side
+        image = str(self.param(f'eyes_{side}'))
+        if self.dry_run:
+            self.get_logger().info(f'(dry run) eyes {side}: {image}')
+            return
+
+        def send():                           # HTTP off the ROS callback thread
+            if not self.eyes_busy.acquire(blocking=False):
+                return                        # one at a time; the next tick catches up
+            try:
+                requests.post(f'http://{self.ip}/api/images/display', json={'FileName': image, 'Alpha': 1},
+                              timeout=float(self.param('request_timeout')))
+            except Exception as exc:
+                self.get_logger().warning(f'eyes {side}: {exc}', throttle_duration_sec=10.0)
+            finally:
+                self.eyes_busy.release()
+        threading.Thread(target=send, daemon=True).start()
 
     def publish_status(self):
         with self.lock:

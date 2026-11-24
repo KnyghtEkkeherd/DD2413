@@ -14,7 +14,8 @@ Modes (parameter `mode`):
   poll    single photos (GET cameras/rgb), `fps` per second. Slowest.
 
 Only the newest frame is ever published (no queue), so a slow consumer never
-sees old images. `rotate_deg` (0/90/180/270, clockwise) fixes a rotated stream.
+sees old images. `rotate_deg` (0/90/180/270, clockwise) fixes a rotated stream; photos
+(poll mode and the poll fallback) come upright and are never rotated.
 """
 import base64
 import json
@@ -81,6 +82,9 @@ class MistyCamera(Node):
         P('misty_ip', '')
         P('mode', 'stream')                 # stream | rtsp | poll
         P('fps', 2.0)                       # poll mode
+        P('poll_fallback', False)           # stream mode: take photos while the stream is down? Photos
+                                            # starve Misty's own marker / face detection (navigation)
+        P('stream_connect_s', 10.0)         # after starting the stream, keep trying to connect this long
         P('width', 640)
         P('height', 480)
         P('quality', 60)                    # stream: JPEG quality 1-100 (lower = less latency)
@@ -194,7 +198,7 @@ class MistyCamera(Node):
         except Exception as e:
             self.get_logger().warning(f'take_picture failed: {e}', throttle_duration_sec=5.0)
             return
-        self.publish_jpeg(data)
+        self.publish_jpeg(data, rotated=True)       # photos come upright: only stream frames need rotate_deg
 
     # ---------------------------------------------------------- stream mode
     def stream_loop(self):
@@ -209,7 +213,7 @@ class MistyCamera(Node):
                     quality=int(self.get_parameter('quality').value), overlay=False)
                 if not r.ok:
                     raise RuntimeError(f'videostreaming/start: HTTP {r.status_code} {r.text[:200]}')
-                ws = websocket.create_connection(f'ws://{self.host}:{port}', timeout=5)
+                ws = self.connect_stream(port)       # Misty needs a moment to open the stream
                 ws.settimeout(3.0)
                 self.get_logger().info(f'Video stream connected (ws://{self.host}:{port})')
                 bad = 0
@@ -225,14 +229,19 @@ class MistyCamera(Node):
                             raise RuntimeError('unrecognised stream frame format')
                         continue
                     bad = 0
+                    self.stream_warned = False
                     if self.polling:
                         self.polling = False
                         self.get_logger().info('Video stream frames arriving: polling stopped')
                     self.publish_jpeg(frame)
             except Exception as e:
-                if not self.polling:
-                    self.get_logger().warning(f'Video stream unavailable ({e}); falling back to polling, retrying')
-                self.polling = True
+                fallback = bool(self.get_parameter('poll_fallback').value)
+                if not self.polling and not getattr(self, 'stream_warned', False):
+                    self.get_logger().warning(f'Video stream unavailable ({e}); '
+                                              + ('falling back to photos, ' if fallback else 'no image until it is back (poll_fallback: false), ')
+                                              + 'retrying')
+                    self.stream_warned = True
+                self.polling = fallback
             finally:
                 if ws is not None:
                     try:
@@ -240,6 +249,16 @@ class MistyCamera(Node):
                     except Exception:
                         pass
             self.stop_flag.wait(5.0)
+
+    def connect_stream(self, port):
+        deadline = time.monotonic() + float(self.get_parameter('stream_connect_s').value)
+        while True:
+            try:
+                return websocket.create_connection(f'ws://{self.host}:{port}', timeout=5)
+            except Exception:
+                if time.monotonic() > deadline or self.stop_flag.is_set():
+                    raise
+                time.sleep(0.5)
 
     # ------------------------------------------------------------ rtsp mode
     def rtsp_loop(self):
