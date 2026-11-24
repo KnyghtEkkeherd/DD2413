@@ -120,7 +120,9 @@ def main():
     tab_panel = L.panel('Tab', {'activeTabIdx': 0, 'tabs': tabs})
 
     motion = [L.button('LOOK_BACK', BLUE, 'Look back'), L.button('HEAD_CENTER', GREY, 'Head centre'),
-              L.button('STOP', DARK, '■ STOP all (pause study + Nav2)'), L.button('RESUME', GREEN, '▶ RESUME')]
+              L.button('FACE_TRACK_ON', GREEN, 'Face tracking ON'),
+              L.button('FACE_TRACK_OFF', DARK, 'Face tracking OFF'),
+              L.button('STOP', DARK, '■ STOP all (pause study + nav)'), L.button('RESUME', GREEN, '▶ RESUME')]
     session = L.split([L.button('START', BLUE, 'START session'), L.button('END', DARK, 'END session'),
                        L.button('TOUCH_SIM', GREY, 'Log touch (sim)')], 'row')
     params = L.panel('Parameters', {'title': 'Session: set participant_id + condition, then START'})
@@ -128,7 +130,8 @@ def main():
                       L.status('/wizard/session', 16, 'Session'),
                       L.status('/wizard/said', 16, 'Misty said / played'),
                       L.status('/wizard/last', 16, 'Last action / head touch'),
-                      L.status('/nav/status', 16, 'Navigation status (fail_trigger: Parameters > /misty_nav)')],
+                      L.status('/nav/status', 16, 'Navigation status (fail_trigger: Parameters > /misty_nav)'),
+                      L.status('/misty/face_tracking/status', 16, 'Face tracking status')],
                      'column')
     camera = L.panel('Image', {'foxglovePanelTitle': 'Misty camera',
                                'imageMode': {'imageTopic': '/misty/camera/image/compressed'}})
@@ -136,7 +139,7 @@ def main():
                     L.split([L.teleop('/cmd_vel', 'DRIVE: overrides Nav2 (arrows = forward/back/turn)', 10),
                              L.teleop('/misty/head_cmd', 'HEAD / CAMERA (up/down = tilt, left/right = pan)', 10)],
                             'row'),
-                    L.grid(motion, 2)], 'column', [50, 28, 22])
+                    L.grid(motion, 3)], 'column', [50, 28, 22])
     right = L.split([status, L.split(main_buttons, 'row'), tab_panel, L.split([session, params], 'row', [55, 45])],
                     'column', [24, 8, 54, 14])
     out = ROOT / 'foxglove' / 'misty_wizard_layout.json'

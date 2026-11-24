@@ -20,6 +20,8 @@ The wizard (Foxglove buttons) and study_node send std_msgs/String on /wizard/eve
             TOUCH_SIM                log a head touch by hand
   Driving is NOT done here: the wizard drives with the controller / Foxglove DRIVE
   panel through twist_mux, which overrides Nav2.
+  Eye expressions: reaction/button -> eye image preset (eyes in study.yaml); EMOTION:<name>
+  sets the full emotion preset (face + LEDs + arms) from emotions in study.yaml.
 
 Status (latched): /wizard/session, /wizard/said, /wizard/last, /wizard/condition
 (condition while a session runs, '' otherwise); /wizard/done (speech finished),
@@ -72,6 +74,8 @@ class MistyWizard(Node):
         self.declare_parameter('reactions', str(share / 'reactions.json'))
         self.declare_parameter('session_dir', str(Path.home() / 'misty_ws' / 'sessions'))
         self.declare_parameter('request_timeout', 2.0)
+        self.declare_parameter('face_tracking_start_pitch_deg', -10.0)
+        self.declare_parameter('face_tracking_start_velocity', 90.0)
 
         self.ip = self.get_parameter('misty_ip').value
         if not self.ip:
@@ -90,6 +94,9 @@ class MistyWizard(Node):
         self.last_variant = {}
         self.sequence = None                  # running sequence (e.g. FAILURE) thread
         self.cancel = threading.Event()       # cancels the running sequence
+        self.eye_lock = threading.Lock()      # serializes eye commands + reset timers
+        self.eye_generation = 0               # prevents older timers resetting newer eyes
+        self.eye_timer = None
 
         latched = QoSProfile(depth=1, durability=DurabilityPolicy.TRANSIENT_LOCAL)
         self.pub = {n: self.create_publisher(String, f'wizard/{n}', latched)
@@ -248,6 +255,68 @@ class MistyWizard(Node):
             self.note(f'{what} failed: {e}')
         return False
 
+    # ------------------------------------------------------------ eye display
+    def eye_file(self, emotion):
+        """Resolve a named emotion (or filename) to an image stored on Misty."""
+        config = self.cfg.get('eyes') or {}
+        presets = config.get('emotions') or {}
+        name = presets.get(emotion, emotion)
+        if not isinstance(name, str) or not name.lower().endswith(('.jpg', '.jpeg', '.png', '.gif')):
+            self.get_logger().warning(f'Unknown eye expression {emotion!r} in study.yaml')
+            return None
+        return name
+
+    def show_eyes(self, emotion, hold_s=None):
+        """Display eyes now; optionally revert after hold_s seconds.
+
+        Returns a generation token so a long sequence can restore its own eyes
+        without overwriting a newer button's expression.
+        """
+        filename = self.eye_file(emotion)
+        if filename is None:
+            return None
+        with self.eye_lock:
+            self.eye_generation += 1
+            token = self.eye_generation
+            if self.eye_timer is not None:
+                self.eye_timer.cancel()
+                self.eye_timer = None
+            self.call(f'Eyes {emotion}', self.misty.display_image,
+                      fileName=filename, alpha=1.0)
+            if hold_s is not None and hold_s > 0:
+                timer = threading.Timer(float(hold_s), self.reset_eyes, kwargs={'token': token})
+                timer.daemon = True
+                self.eye_timer = timer
+                timer.start()
+        return token
+
+    def reset_eyes(self, token=None):
+        """Restore neutral/default eyes unless a newer action superseded us."""
+        config = self.cfg.get('eyes') or {}
+        if not config:
+            return
+        filename = self.eye_file(config.get('default', 'neutral'))
+        if filename is None:
+            return
+        with self.eye_lock:
+            if token is not None and token != self.eye_generation:
+                return
+            self.eye_generation += 1
+            if self.eye_timer is not None:
+                self.eye_timer.cancel()
+                self.eye_timer = None
+            self.call('Restore eyes', self.misty.display_image,
+                      fileName=filename, alpha=1.0)
+
+    def eyes_for(self, category, key, timed=True):
+        """Apply an optional eyes.reactions/eyes.buttons entry from study.yaml."""
+        config = self.cfg.get('eyes') or {}
+        emotion = (config.get(category) or {}).get(key)
+        if emotion is None:
+            return None
+        hold_s = float(config.get('one_shot_hold_s', 4.0)) if timed else None
+        return self.show_eyes(emotion, hold_s=hold_s)
+
     def voice_params(self, *specs):
         """Merge voice settings: later specs override earlier ones.
 
@@ -332,8 +401,10 @@ class MistyWizard(Node):
         if r.get('steps'):
             self.start_sequence(rid)
         elif r.get('sentences'):
+            self.eyes_for('reactions', rid)
             self.say_reaction(rid, index)
         elif r.get('sounds'):
+            self.eyes_for('reactions', rid)
             self.sound_reaction(rid, index)
         else:
             self.note(f'Reaction "{rid}" has no sentences, sounds or steps')
@@ -347,11 +418,14 @@ class MistyWizard(Node):
         else:
             self.log('auto', 'PLAY_FAILED', detail=filename)
 
-    def head(self, yaw):
+    def head(self, yaw, pitch=0.0, velocity=None):
         lb = self.cfg['look_back']
-        self.call('move_head', self.misty.move_head, pitch=0.0, roll=0.0, yaw=float(yaw),
-                  velocity=float(lb['head_velocity']), units='degrees')
-        self.head_pub.publish(Vector3(x=0.0, y=0.0, z=float(yaw)))  # keep head teleop in sync
+        speed = float(lb['head_velocity']) if velocity is None else float(velocity)
+        pitch = max(-40.0, min(26.0, float(pitch)))  # negative pitches look upward
+        yaw = max(-81.0, min(81.0, float(yaw)))
+        self.call('move_head', self.misty.move_head, pitch=pitch, roll=0.0, yaw=yaw,
+                  velocity=speed, units='degrees')
+        self.head_pub.publish(Vector3(x=pitch, y=0.0, z=yaw))  # keep teleop in sync
 
     def sleep(self, seconds, until=None):
         """Wait inside a sequence; raises Cancelled on STOP."""
@@ -368,6 +442,7 @@ class MistyWizard(Node):
         self.log('wizard', what)
         self.call('stop_speaking', self.misty.stop_speaking)
         self.call('stop_audio', self.misty.stop_audio)
+        self.reset_eyes()
 
     # -------------------------------------------------------------- sequences
     def start_sequence(self, rid):
@@ -376,10 +451,11 @@ class MistyWizard(Node):
             return
         self.cancel.clear()
         self.log('wizard', f'SEQUENCE_{rid}')
-        self.sequence = threading.Thread(target=self.run_sequence, args=(rid,), daemon=True)
+        eyes_token = self.eyes_for('reactions', rid, timed=False)
+        self.sequence = threading.Thread(target=self.run_sequence, args=(rid, eyes_token), daemon=True)
         self.sequence.start()
 
-    def run_sequence(self, rid):
+    def run_sequence(self, rid, eyes_token=None):
         src = rid.lower()
         self.note(f'{rid} running')
         try:
@@ -401,6 +477,9 @@ class MistyWizard(Node):
         except Cancelled:
             self.log(src, f'SEQUENCE_{rid}_CANCELLED')
             self.note(f'{rid} cancelled')
+        finally:
+            if eyes_token is not None:
+                self.reset_eyes(token=eyes_token)
 
     # ---------------------------------------------------------------- session
     def start_session(self):
@@ -437,6 +516,7 @@ class MistyWizard(Node):
             return
         self.cancel.set()
         self.call('stop', self.misty.stop)
+        self.reset_eyes()
         self.log('wizard', 'SESSION_END')
         self.publish('condition', '')
         with self.log_lock:
@@ -448,6 +528,10 @@ class MistyWizard(Node):
 
     # ----------------------------------------------------------------- events
     def handle_event(self, name, source, arg):
+        # Optional YAML mappings let non-reaction buttons (e.g. LOOK_BACK)
+        # change eyes as well. REACT/FAILURE use reaction-specific handling.
+        if name not in ('REACT', 'SAY', 'FAILURE', 'STOP', 'STOP_TALKING'):
+            self.eyes_for('buttons', name)
         if name == 'TOUCH' or name == 'TOUCH_SIM':
             detail = arg or ('TOUCH_SIM' if name == 'TOUCH_SIM' else '')
             self.log(source, 'TOUCH', detail=detail)
@@ -471,6 +555,14 @@ class MistyWizard(Node):
         elif name in ('REACT', 'SAY'):
             rid, _, idx = arg.partition(':')
             self.react(rid.strip(), int(idx) if idx.strip().isdigit() else None)
+        elif name in ('FACE_TRACK_ON', 'FACE_TRACK_OFF'):
+            self.log(source, name)
+            if name == 'FACE_TRACK_ON':
+                # Aim slightly up and straight ahead before auto-tracking starts.
+                self.head(0.0,
+                          pitch=self.get_parameter('face_tracking_start_pitch_deg').value,
+                          velocity=self.get_parameter('face_tracking_start_velocity').value)
+            self.note(f'{name}: see face tracking status panel')
         elif name == 'FAILURE':
             self.react('FAILURE')
         elif name == 'SAY_TEXT':
@@ -612,6 +704,7 @@ class MistyWizard(Node):
         self.cancel.set()
         self.worker.join(timeout=3.0)
         self.call('stop', self.misty.stop)
+        self.reset_eyes()
         with self.log_lock:
             if self.csv_file is not None:
                 self.csv.writerow({'timestamp': datetime.now().isoformat(timespec='milliseconds'),

@@ -6,7 +6,9 @@
 Starts
   misty_foxglove.launch.py   camera, teleop (drives Misty), Xbox controller, keyboard-free
                              teleop relay, twist_mux, foxglove_bridge
-  wizard_node                speech / sounds / emotions / gestures / session CSV
+  wizard_node                speech / sounds / emotions / eye expressions / gestures / session CSV
+  face_tracker               head follows faces (Misty's face detection); off while driving,
+                             switched on by the follower when Misty stops at a marker
   study_node                 study state machine (config/study.yaml)
   follow_node (nav:=follow, default)  drive straight at the target marker when it's in view;
                              stop in front of obstacles; the wizard steers otherwise
@@ -46,12 +48,15 @@ def setup(context):
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource(str(share / 'launch' / 'misty_foxglove.launch.py')),
             launch_arguments={'misty_ip': ip, 'params_file': params, 'robot': 'true' if sim == 'none' else 'false',
-                              'gamepad_local': arg('gamepad_local')}.items()),
+                              'gamepad_local': arg('gamepad_local'), 'camera': arg('camera')}.items()),
         Node(package='misty_ros', executable='wizard_node', name='misty_wizard', output='screen',
              parameters=[params, {'misty_ip': ip, 'participant_id': arg('participant_id'),
                                   'condition': arg('condition'), 'study_config': study_cfg,
                                   'reactions': arg('reactions') or cfg('reactions.json'),
                                   'session_dir': arg('session_dir')}]),
+        # face tracking (off until FACE_TRACK_ON: the follower switches it on at each marker)
+        Node(package='misty_ros', executable='face_tracker', name='misty_face_tracker', output='screen',
+             parameters=[params, {'misty_ip': ip, 'dry_run': sim != 'none'}]),
         Node(package='misty_ros', executable='study_node', name='misty_study', output='screen',
              parameters=[{'study_config': study_cfg}]),
     ]
@@ -89,6 +94,9 @@ def generate_launch_description():
         DeclareLaunchArgument('markers', default_value='',
                               description='aruco_opencv (camera stream) | json (Misty on-board detector)'),
         DeclareLaunchArgument('depth', default_value='false', description='depth camera -> Nav2 obstacle scan'),
+        DeclareLaunchArgument('camera', default_value='true',
+                              description='camera image feed for Foxglove (false if it competes with Misty\'s '
+                                          'own face / marker detection for the camera)'),
         DeclareLaunchArgument('gamepad_local', default_value='false',
                               description='controller plugged into this machine (else scripts/gamepad_sender.py)'),
         DeclareLaunchArgument('params_file', default_value=str(share / 'config' / 'misty_params.yaml')),

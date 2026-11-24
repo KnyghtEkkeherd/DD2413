@@ -17,7 +17,7 @@ from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, ExecuteProcess
 from launch.conditions import IfCondition
-from launch.substitutions import EnvironmentVariable, LaunchConfiguration
+from launch.substitutions import EnvironmentVariable, LaunchConfiguration, PythonExpression
 from launch_ros.actions import Node
 from launch_ros.parameter_descriptions import ParameterValue
 
@@ -28,6 +28,8 @@ def generate_launch_description():
     args = [
         DeclareLaunchArgument('misty_ip', default_value=EnvironmentVariable('MISTY_IP', default_value=''),
                               description="Misty's IP address (defaults to $MISTY_IP)"),
+        DeclareLaunchArgument('camera', default_value='true',
+                              description='Start camera image polling (disable if face detection competes)'),
         DeclareLaunchArgument('params_file', default_value=str(share / 'config' / 'misty_params.yaml'),
                               description='Speeds / gains / camera settings'),
         DeclareLaunchArgument('port', default_value='8765', description='Foxglove WebSocket port'),
@@ -48,7 +50,9 @@ def generate_launch_description():
 
     robot = IfCondition(LaunchConfiguration('robot'))
     camera = Node(package='misty_ros', executable='camera_node', name='misty_camera', output='screen',
-                  condition=robot, parameters=[params, {'misty_ip': ip}])
+                  condition=IfCondition(PythonExpression(["'", LaunchConfiguration('robot'), "' == 'true' and '",
+                                                          LaunchConfiguration('camera'), "' == 'true'"])),
+                  parameters=[params, {'misty_ip': ip}])
     teleop = Node(package='misty_ros', executable='teleop_node', name='misty_teleop', output='screen',
                   condition=robot, parameters=[params, {'misty_ip': ip}])
     relay = Node(package='misty_ros', executable='teleop_relay', name='misty_teleop_relay', output='screen',

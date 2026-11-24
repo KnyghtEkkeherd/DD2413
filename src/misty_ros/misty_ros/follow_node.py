@@ -17,7 +17,10 @@ minus what Misty has turned since the detection: detections arrive late).
     obstacle (front ToF < stop_m)   simple avoidance: turn avoid_turn_deg away from it
                                     (towards the freer side if the side ToFs say so),
                                     drive avoid_forward_m, then turn back / search
-The head is kept neutral while driving (the camera is in the head). The wizard's
+The head is kept neutral while driving (the camera is in the head). Face tracking
+(face_tracker) is switched off when a drive starts and on when Misty has stopped at
+the marker (FACE_TRACK_OFF / FACE_TRACK_ON on /wizard/event; face_tracking: false
+leaves it to the wizard). The wizard's
 controller / Foxglove DRIVE always override this node (twist_mux); B / STOP pauses it,
 START / RESUME (or NAV_GO) continues.
 
@@ -89,6 +92,8 @@ class Follower(Node):
         P('avoid_turn_deg', 45.0)               # avoidance: turn this far away from the obstacle,
         P('avoid_forward_m', 0.4)               # ... drive this far, then turn back / search
         P('avoid_speed', 0.12)                  # m/s
+        P('face_tracking', True)                # face tracking (face_tracker) off while driving,
+                                                # on once Misty has stopped at a marker
         P('rate', 10.0)
 
         latched = QoSProfile(depth=1, durability=DurabilityPolicy.TRANSIENT_LOCAL)
@@ -212,9 +217,14 @@ class Follower(Node):
             self.state = 'DONE'
             self.stop()
             return self.set_status('DONE: mission complete')
+        self.face_tracking(False)               # the camera must look for the marker, not faces
         self.center_head(force=True)
         self.state = 'FOLLOW'
         self.set_status(f'FOLLOW marker {mid}')
+
+    def face_tracking(self, on):
+        if self.p('face_tracking'):
+            self.wizard.publish(String(data='FACE_TRACK_ON' if on else 'FACE_TRACK_OFF'))
 
     def center_head(self, force=False):
         """The camera is in the head: keep it neutral while driving (re-centre at most 1/s)."""
@@ -375,6 +385,7 @@ class Follower(Node):
         self.set_status(f'ARRIVED at marker {mid} ({dist:.2f} m)')
         if self.goto is not None:               # study target: report, no reactions
             self.state = 'ARRIVED'
+            self.face_tracking(True)
             self.arrived_pub.publish(String(data=str(mid)))
             return
         role = self.role(mid)
@@ -386,15 +397,18 @@ class Follower(Node):
             react(self.p('start_reaction'))
             if self.p('wait_after_start'):
                 self.state = 'WAIT'
+                self.face_tracking(True)
                 return self.set_status(f'WAIT at start marker {mid}: press NAV GO to continue')
         elif role == 'fail' and self.p('fail_trigger'):
             react(self.p('fail_reaction'))
             if self.p('wait_after_fail'):
                 self.state = 'WAIT'
+                self.face_tracking(True)
                 return self.set_status(f'WAIT at fail marker {mid}: press NAV GO to continue')
         elif role == 'goal':
             react(self.p('goal_reaction'))
             self.state = 'DONE'
+            self.face_tracking(True)
             return self.set_status(f'DONE: arrived at goal marker {mid}')
         else:
             react(self.p('waypoint_reaction'))

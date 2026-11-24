@@ -1388,13 +1388,31 @@
     "Publish!publish99": {
       "topicName": "/wizard/event",
       "datatype": "std_msgs/msg/String",
-      "buttonText": "■ STOP all (pause study + Nav2)",
+      "buttonText": "Face tracking ON",
+      "buttonTooltip": "Send FACE_TRACK_ON",
+      "buttonColor": "#2e9e5b",
+      "advancedView": false,
+      "value": "{\"data\": \"FACE_TRACK_ON\"}"
+    },
+    "Publish!publish100": {
+      "topicName": "/wizard/event",
+      "datatype": "std_msgs/msg/String",
+      "buttonText": "Face tracking OFF",
+      "buttonTooltip": "Send FACE_TRACK_OFF",
+      "buttonColor": "#8a1c1c",
+      "advancedView": false,
+      "value": "{\"data\": \"FACE_TRACK_OFF\"}"
+    },
+    "Publish!publish101": {
+      "topicName": "/wizard/event",
+      "datatype": "std_msgs/msg/String",
+      "buttonText": "■ STOP all (pause study + nav)",
       "buttonTooltip": "Send STOP",
       "buttonColor": "#8a1c1c",
       "advancedView": false,
       "value": "{\"data\": \"STOP\"}"
     },
-    "Publish!publish100": {
+    "Publish!publish102": {
       "topicName": "/wizard/event",
       "datatype": "std_msgs/msg/String",
       "buttonText": "▶ RESUME",
@@ -1403,7 +1421,7 @@
       "advancedView": false,
       "value": "{\"data\": \"RESUME\"}"
     },
-    "Publish!publish101": {
+    "Publish!publish103": {
       "topicName": "/wizard/event",
       "datatype": "std_msgs/msg/String",
       "buttonText": "START session",
@@ -1412,7 +1430,7 @@
       "advancedView": false,
       "value": "{\"data\": \"START\"}"
     },
-    "Publish!publish102": {
+    "Publish!publish104": {
       "topicName": "/wizard/event",
       "datatype": "std_msgs/msg/String",
       "buttonText": "END session",
@@ -1421,7 +1439,7 @@
       "advancedView": false,
       "value": "{\"data\": \"END\"}"
     },
-    "Publish!publish103": {
+    "Publish!publish105": {
       "topicName": "/wizard/event",
       "datatype": "std_msgs/msg/String",
       "buttonText": "Log touch (sim)",
@@ -1430,10 +1448,10 @@
       "advancedView": false,
       "value": "{\"data\": \"TOUCH_SIM\"}"
     },
-    "Parameters!parameters104": {
+    "Parameters!parameters106": {
       "title": "Session: set participant_id + condition, then START"
     },
-    "RawMessages!rawmessages105": {
+    "RawMessages!rawmessages107": {
       "foxglovePanelTitle": "Study state",
       "topicPath": "/study/state.data",
       "diffEnabled": false,
@@ -1442,7 +1460,7 @@
       "showFullMessageForDiff": false,
       "fontSize": 20
     },
-    "RawMessages!rawmessages106": {
+    "RawMessages!rawmessages108": {
       "foxglovePanelTitle": "Session",
       "topicPath": "/wizard/session.data",
       "diffEnabled": false,
@@ -1451,7 +1469,7 @@
       "showFullMessageForDiff": false,
       "fontSize": 16
     },
-    "RawMessages!rawmessages107": {
+    "RawMessages!rawmessages109": {
       "foxglovePanelTitle": "Misty said / played",
       "topicPath": "/wizard/said.data",
       "diffEnabled": false,
@@ -1460,7 +1478,7 @@
       "showFullMessageForDiff": false,
       "fontSize": 16
     },
-    "RawMessages!rawmessages108": {
+    "RawMessages!rawmessages110": {
       "foxglovePanelTitle": "Last action / head touch",
       "topicPath": "/wizard/last.data",
       "diffEnabled": false,
@@ -1469,7 +1487,7 @@
       "showFullMessageForDiff": false,
       "fontSize": 16
     },
-    "RawMessages!rawmessages109": {
+    "RawMessages!rawmessages111": {
       "foxglovePanelTitle": "Navigation status (fail_trigger: Parameters > /misty_nav)",
       "topicPath": "/nav/status.data",
       "diffEnabled": false,
@@ -1478,13 +1496,22 @@
       "showFullMessageForDiff": false,
       "fontSize": 16
     },
-    "Image!image110": {
+    "RawMessages!rawmessages112": {
+      "foxglovePanelTitle": "Face tracking status",
+      "topicPath": "/misty/face_tracking/status.data",
+      "diffEnabled": false,
+      "diffMethod": "custom",
+      "diffTopicPath": "",
+      "showFullMessageForDiff": false,
+      "fontSize": 16
+    },
+    "Image!image113": {
       "foxglovePanelTitle": "Misty camera",
       "imageMode": {
         "imageTopic": "/misty/camera/image/compressed"
       }
     },
-    "Teleop!teleop111": {
+    "Teleop!teleop114": {
       "foxglovePanelTitle": "DRIVE: overrides Nav2 (arrows = forward/back/turn)",
       "topic": "/cmd_vel",
       "publishRate": 10,
@@ -1505,7 +1532,7 @@
         "value": -1
       }
     },
-    "Teleop!teleop112": {
+    "Teleop!teleop115": {
       "foxglovePanelTitle": "HEAD / CAMERA (up/down = tilt, left/right = pan)",
       "topic": "/misty/head_cmd",
       "publishRate": 10,
@@ -1534,26 +1561,36 @@
   },
   "layout": {
     "first": {
-      "first": "Image!image110",
+      "first": "Image!image113",
       "second": {
         "first": {
-          "first": "Teleop!teleop111",
-          "second": "Teleop!teleop112",
+          "first": "Teleop!teleop114",
+          "second": "Teleop!teleop115",
           "direction": "row",
           "splitPercentage": 50.0
         },
         "second": {
           "first": {
             "first": "Publish!publish97",
-            "second": "Publish!publish98",
+            "second": {
+              "first": "Publish!publish98",
+              "second": "Publish!publish99",
+              "direction": "row",
+              "splitPercentage": 50.0
+            },
             "direction": "row",
-            "splitPercentage": 50.0
+            "splitPercentage": 33.33333333333333
           },
           "second": {
-            "first": "Publish!publish99",
-            "second": "Publish!publish100",
+            "first": "Publish!publish100",
+            "second": {
+              "first": "Publish!publish101",
+              "second": "Publish!publish102",
+              "direction": "row",
+              "splitPercentage": 50.0
+            },
             "direction": "row",
-            "splitPercentage": 50.0
+            "splitPercentage": 33.33333333333333
           },
           "direction": "column",
           "splitPercentage": 50.0
@@ -1566,25 +1603,30 @@
     },
     "second": {
       "first": {
-        "first": "RawMessages!rawmessages105",
+        "first": "RawMessages!rawmessages107",
         "second": {
-          "first": "RawMessages!rawmessages106",
+          "first": "RawMessages!rawmessages108",
           "second": {
-            "first": "RawMessages!rawmessages107",
+            "first": "RawMessages!rawmessages109",
             "second": {
-              "first": "RawMessages!rawmessages108",
-              "second": "RawMessages!rawmessages109",
+              "first": "RawMessages!rawmessages110",
+              "second": {
+                "first": "RawMessages!rawmessages111",
+                "second": "RawMessages!rawmessages112",
+                "direction": "column",
+                "splitPercentage": 50.0
+              },
               "direction": "column",
-              "splitPercentage": 50.0
+              "splitPercentage": 33.33333333333333
             },
             "direction": "column",
-            "splitPercentage": 33.33333333333333
+            "splitPercentage": 25.0
           },
           "direction": "column",
-          "splitPercentage": 25.0
+          "splitPercentage": 20.0
         },
         "direction": "column",
-        "splitPercentage": 20.0
+        "splitPercentage": 16.666666666666664
       },
       "second": {
         "first": {
@@ -1597,17 +1639,17 @@
           "first": "Tab!tab96",
           "second": {
             "first": {
-              "first": "Publish!publish101",
+              "first": "Publish!publish103",
               "second": {
-                "first": "Publish!publish102",
-                "second": "Publish!publish103",
+                "first": "Publish!publish104",
+                "second": "Publish!publish105",
                 "direction": "row",
                 "splitPercentage": 50.0
               },
               "direction": "row",
               "splitPercentage": 33.33333333333333
             },
-            "second": "Parameters!parameters104",
+            "second": "Parameters!parameters106",
             "direction": "row",
             "splitPercentage": 55.00000000000001
           },

@@ -17,6 +17,7 @@ from launch.conditions import IfCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import EnvironmentVariable, LaunchConfiguration, PythonExpression
 from launch_ros.actions import Node
+from launch_ros.parameter_descriptions import ParameterValue
 
 
 def generate_launch_description():
@@ -48,9 +49,18 @@ def generate_launch_description():
             condition=IfCondition(PythonExpression(["'", LaunchConfiguration('nav'), "' == 'true' and '",
                                                     LaunchConfiguration('nav_stack'), "' == 'custom'"])),
             launch_arguments={'misty_ip': ip, 'params_file': LaunchConfiguration('params_file')}.items()),
+        DeclareLaunchArgument('camera', default_value='true'),
+        DeclareLaunchArgument('face_tracking_dry_run', default_value='false'),
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource(os.path.join(share, 'launch', 'misty_foxglove.launch.py')),
-            launch_arguments={'misty_ip': ip, 'params_file': LaunchConfiguration('params_file')}.items()),
+            launch_arguments={'misty_ip': ip,
+                              'params_file': LaunchConfiguration('params_file'),
+                              'camera': LaunchConfiguration('camera')}.items()),
+        Node(package='misty_ros', executable='face_tracker', name='misty_face_tracker', output='screen',
+             parameters=[LaunchConfiguration('params_file'), {
+                 'misty_ip': ip,
+                 'dry_run': ParameterValue(LaunchConfiguration('face_tracking_dry_run'), value_type=bool),
+             }]),
         Node(package='misty_ros', executable='wizard_node', name='misty_wizard', output='screen',
              parameters=[LaunchConfiguration('params_file'), {
                  'misty_ip': ip,

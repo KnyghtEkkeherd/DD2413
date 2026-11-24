@@ -105,14 +105,21 @@ misty_nav:
     wait_after_start: true
     wait_after_fail: true
     head_pitch_deg: 0.0     # head pose while navigating (camera must face forward)
-    # Speeds in teleop units (1.0 = misty_teleop linear_scale / angular_scale %)
-    max_linear: 0.8
-    max_angular: 0.6
-    k_linear: 0.8
-    k_angular: 1.2
-    turn_in_place_deg: 25.0 # turn on the spot first if the target is further off than this
+    # Follower (nav:=follow, default) speeds and gains, m/s and rad/s. These names are shared
+    # with the old custom navigator (nav.launch.py), which reads them in teleop units.
+    max_linear: 0.20        # m/s
+    min_linear: 0.06
+    k_linear: 0.5
+    max_angular: 0.25       # rad/s, steering while driving
+    min_angular: 0.15       # rad/s, smaller doesn't turn Misty
+    k_angular: 0.5
+    center_deadband_deg: 6.0
+    turn_only_deg: 20.0     # drive window; further off-centre: turn in place, then settle
+    turn_rate: 0.3          # rad/s, turns in place
     standoff_m: 0.6         # stop this far in front of a marker
-    arrive_tol_m: 0.12
+    arrive_tol_m: 0.08
+    # old custom navigator only:
+    turn_in_place_deg: 25.0
     search_turn_s: 0.8      # when no marker is known: turn this long ...
     search_dwell_s: 1.2     # ... then hold still this long to look
     search_angular: 0.5
@@ -172,3 +179,17 @@ misty_gz:
   ros__parameters:
     world: '{"markers": {"1": [1.2, 0.0, 180], "2": [3.5, 1.5, 180], "3": [1.5, -2.0, 90]},
              "obstacles": [[2.2, 0.85, 0.25]], "walls": [-1.0, -3.0, 5.0, 3.0]}'
+
+misty_face_tracker:
+  ros__parameters:
+    deadband_deg: 4.0
+    gain: 0.35
+    max_command: 0.30
+    head_step_deg: 13.0
+    yaw_sign: 1.0
+    pitch_sign: -1.0
+    event_debounce_ms: 700
+    control_period_s: 0.10
+    enable_settle_s: 1.5
+    max_face_age_s: 1.5
+    request_timeout: 3.0
