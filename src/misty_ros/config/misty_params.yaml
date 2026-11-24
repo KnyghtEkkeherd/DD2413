@@ -195,6 +195,7 @@ misty_face_tracker:
     # head: the head turns towards the face. If the eyes look the wrong way, swap
     # eyes_left / eyes_right (or set yaw_sign: -1.0).
     mode: eyes
+    start_enabled: true     # track faces from launch on, before the first drive
     eyes_left: e_ContentLeft.jpg      # face on Misty's left
     eyes_right: e_ContentRight.jpg    # face on Misty's right
     eyes_center: e_DefaultContent.jpg

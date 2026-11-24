@@ -56,6 +56,9 @@ class MistyFaceTracker(Node):
         # mode: eyes = the head stays still, Misty's eyes look towards the face (eye images);
         #       head = the head turns towards the face (/misty/head_cmd)
         self.declare_parameter('mode', 'eyes')
+        self.declare_parameter('start_enabled', True)        # track from launch on (before the first
+                                                             # drive); the follower switches it off
+                                                             # while driving and on at each marker
         self.declare_parameter('eyes_center', 'e_DefaultContent.jpg')
         self.declare_parameter('eyes_left', 'e_ContentLeft.jpg')     # face on Misty's left
         self.declare_parameter('eyes_right', 'e_ContentRight.jpg')   # face on Misty's right
@@ -91,6 +94,9 @@ class MistyFaceTracker(Node):
         self.last_nudge_time = 0.0
         self.eyes_side = None                # 'left' | 'center' | 'right' currently shown (None = untouched)
         self.eyes_busy = threading.Lock()
+        if bool(self.param('start_enabled')):
+            self.enabled, self.enabled_at, self.generation = True, time.monotonic(), 1
+            self.connection_state = 'DRY RUN' if self.dry_run else 'connecting'
         self.create_timer(max(0.05, float(self.param('control_period_s'))), self.control_tick)
         self.create_timer(1.0, self.publish_status)
         self.publish_status()
@@ -99,8 +105,9 @@ class MistyFaceTracker(Node):
         if not self.dry_run:
             self.worker = threading.Thread(target=self.websocket_loop, daemon=True)
             self.worker.start()
-        self.get_logger().info('Face tracker ready (OFF by default%s)' %
-                               (', DRY RUN' if self.dry_run else ''))
+        self.get_logger().info('Face tracker ready (%s%s)' % (
+            'ON from the start' if self.enabled else 'OFF until FACE_TRACK_ON',
+            ', DRY RUN' if self.dry_run else ''))
 
     def param(self, key):
         return self.get_parameter(key).value
