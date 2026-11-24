@@ -1,5 +1,13 @@
 # misty_ws
 
+To start
+
+```bash
+cd ~/misty_ws && source install/setup.bash
+export FASTDDS_BUILTIN_TRANSPORTS=UDPv4 ROS_AUTOMATIC_DISCOVERY_RANGE=LOCALHOST
+ros2 launch misty_ros study.launch.py misty_ip:=192.168.1.237 markers:=json
+```
+
 Workspace for controlling a Misty II robot: Python SDK (submodule), a venv for
 plain-Python scripts, and a ROS 2 package (`src/misty_ros`) that streams
 Misty's camera to Foxglove and lets you drive it from Foxglove's Teleop panel.
@@ -37,11 +45,11 @@ internet), tunnel it: `ssh -L 8765:localhost:8765 ubuntu@<this-machine>` and use
 
 Panels:
 
-| Panel  | Topic                             | Notes |
-|--------|-----------------------------------|-------|
-| Image  | `/misty/camera/image/compressed`  | ~2 fps JPEG (`fps:=`, `width:=`, `height:=`) |
-| Teleop | `/cmd_vel`                        | Drive. Set **Publish rate to 5 Hz**. |
-| Teleop | `/misty/head_cmd`                 | Aim the head/camera (up/down = tilt, left/right = pan). |
+| Panel  | Topic                            | Notes                                                   |
+| ------ | -------------------------------- | ------------------------------------------------------- |
+| Image  | `/misty/camera/image/compressed` | ~2 fps JPEG (`fps:=`, `width:=`, `height:=`)            |
+| Teleop | `/cmd_vel`                       | Drive. Set **Publish rate to 5 Hz**.                    |
+| Teleop | `/misty/head_cmd`                | Aim the head/camera (up/down = tilt, left/right = pan). |
 
 Driving uses `drive_time`, so Misty stops on its own ~0.6 s after the last
 command — releasing the button or losing the connection stops the robot.
@@ -62,12 +70,12 @@ In Foxglove: **Layouts → Import from file… → `foxglove/misty_wizard_layout
 
 **Who does what**
 
-| | |
-|---|---|
+|                                                                |                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| -------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Study state machine (`config/study.yaml`, from the study plan) | drives the session: APPROACH (Nav2 to marker 1) → GREETING → CONSENT (YES / NO, nudges) → ESCORT_A (Nav2 to marker 2, automatic look-backs) → HALF_PAUSE → CONTROL: CHECK_ROUTE / BREAKDOWN: CONFUSION → FRUSTRATION → LOST_APPEAL → HELP_WAIT → RECOVERY → ESCORT_B (Nav2 to marker 3) → ARRIVE → END. Each state sets Misty's emotion and says its line; transitions on arrival, speech finished, timeouts, head touch and wizard answers |
-| Wizard (Foxglove / controller) | answers (**YES, NO, Direction OK / wrong, RECOVER, Distracted**), **emotions** and **hand gestures** (any time), and the **state buttons**: jump to any state, back or forward (logged) |
-| Driving | Nav2 between markers. The wizard can take over any time: Foxglove DRIVE panel or controller left stick **override Nav2** (twist_mux) |
-| **■ STOP all** / controller B | stops speech + wheels and **pauses** the study and Nav2 (timers freeze); the wizard can still drive by hand. **▶ RESUME** / controller START continues |
+| Wizard (Foxglove / controller)                                 | answers (**YES, NO, Direction OK / wrong, RECOVER, Distracted**), **emotions** and **hand gestures** (any time), and the **state buttons**: jump to any state, back or forward (logged)                                                                                                                                                                                                                                                     |
+| Driving                                                        | Nav2 between markers. The wizard can take over any time: Foxglove DRIVE panel or controller left stick **override Nav2** (twist_mux)                                                                                                                                                                                                                                                                                                        |
+| **■ STOP all** / controller B                                  | stops speech + wheels and **pauses** the study and Nav2 (timers freeze); the wizard can still drive by hand. **▶ RESUME** / controller START continues                                                                                                                                                                                                                                                                                      |
 
 The condition (from `condition` / the Parameters panel at START) picks the
 branch at the halfway marker. Everything is logged in the session CSV:
@@ -84,14 +92,14 @@ re-run `python3 scripts/make_foxglove_layout.py` and re-import the layout.
 Every driving source publishes to its own twist_mux input (`config/twist_mux.yaml`);
 only the winner reaches Misty (`/misty/cmd_vel` → teleop_node):
 
-| Input | Priority |
-|---|---|
-| Foxglove DRIVE panel, Xbox controller | 100 (always wins) |
-| keyboard_teleop | 90 |
-| study node | 50 |
-| Nav2 | 10 |
-| lock `/wizard/estop` (STOP) | blocks everything below 95 |
-| lock `/study/hold_nav` (states that don't drive, look-backs) | blocks Nav2 |
+| Input                                                        | Priority                   |
+| ------------------------------------------------------------ | -------------------------- |
+| Foxglove DRIVE panel, Xbox controller                        | 100 (always wins)          |
+| keyboard_teleop                                              | 90                         |
+| study node                                                   | 50                         |
+| Nav2                                                         | 10                         |
+| lock `/wizard/estop` (STOP)                                  | blocks everything below 95 |
+| lock `/study/hold_nav` (states that don't drive, look-backs) | blocks Nav2                |
 
 Speeds: `/**` in `misty_params.yaml` (`linear_scale`, `angular_scale` for
 manual driving; `max_linear_mps`, `max_angular_dps` = Misty at 100 %, calibrate).
@@ -105,13 +113,13 @@ ros2 launch misty_ros wizard.launch.py misty_ip:=<MISTY_IP> participant_id:=P01 
 Camera, teleop, controller, foxglove_bridge and the wizard, without the study
 node (add `nav:=true` for Nav2). The wizard chooses every reaction.
 
-| Area | What it does |
-|------|--------------|
-| ⚠ **FAILURE** | One press: "I'm lost" → random sad sound → "Can you help me?" (a sequence in `reactions.json`). **Stop talking / cancel** or **■ STOP all** cancels it |
-| Reaction tabs | One tab per `group` in `reactions.json` (Escort, Breakdown, Responses, Sounds…): each button says a random sentence of that reaction in its voice (index logged), or plays a sound. **Custom text** tab: edit the text, optional voice prefix like `[sad] …`, then press |
-| Emotions & hands | Emotion presets (face + LEDs + arms) and arm gestures from `study.yaml` |
-| DRIVE / HEAD | Teleop panels: drive (`/cmd_vel`, via twist_mux), head/camera tilt + pan (`/misty/head_cmd`) |
-| Session | Set `participant_id` + `condition` in the Parameters panel, **START session** … **END session** |
+| Area             | What it does                                                                                                                                                                                                                                                             |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| ⚠ **FAILURE**    | One press: "I'm lost" → random sad sound → "Can you help me?" (a sequence in `reactions.json`). **Stop talking / cancel** or **■ STOP all** cancels it                                                                                                                   |
+| Reaction tabs    | One tab per `group` in `reactions.json` (Escort, Breakdown, Responses, Sounds…): each button says a random sentence of that reaction in its voice (index logged), or plays a sound. **Custom text** tab: edit the text, optional voice prefix like `[sad] …`, then press |
+| Emotions & hands | Emotion presets (face + LEDs + arms) and arm gestures from `study.yaml`                                                                                                                                                                                                  |
+| DRIVE / HEAD     | Teleop panels: drive (`/cmd_vel`, via twist_mux), head/camera tilt + pan (`/misty/head_cmd`)                                                                                                                                                                             |
+| Session          | Set `participant_id` + `condition` in the Parameters panel, **START session** … **END session**                                                                                                                                                                          |
 
 ### Xbox controller
 
@@ -127,16 +135,16 @@ python3 -m venv ~/misty_pad && ~/misty_pad/bin/pip install pygame-ce
 Each session (on the Mac): `~/misty_pad/bin/python ~/gamepad_sender.py 192.168.64.3`
 (add `--show` to see the stick values).
 
-| Control | Action |
-|---------|--------|
-| Left stick | drive (up = forward, sideways = turn) |
-| Right stick | head / camera (up/down = tilt, left/right = pan; speed follows deflection) |
-| B | STOP: wheels, speech, sounds; pauses the study + Nav2 (driving stays off until the left stick is released) |
-| START | RESUME the study + Nav2 after a STOP |
-| X | Look back at the participant |
-| A or Y | head centre |
-| RT / LT | right / left arm: released = down, fully pressed = up, in between = in between (angles in `misty_params.yaml`: `arm_down_deg`, `arm_up_deg`) |
-| LB / RB | slower / faster driving |
+| Control     | Action                                                                                                                                       |
+| ----------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| Left stick  | drive (up = forward, sideways = turn)                                                                                                        |
+| Right stick | head / camera (up/down = tilt, left/right = pan; speed follows deflection)                                                                   |
+| B           | STOP: wheels, speech, sounds; pauses the study + Nav2 (driving stays off until the left stick is released)                                   |
+| START       | RESUME the study + Nav2 after a STOP                                                                                                         |
+| X           | Look back at the participant                                                                                                                 |
+| A or Y      | head centre                                                                                                                                  |
+| RT / LT     | right / left arm: released = down, fully pressed = up, in between = in between (angles in `misty_params.yaml`: `arm_down_deg`, `arm_up_deg`) |
+| LB / RB     | slower / faster driving                                                                                                                      |
 
 If the sender stops or the network drops, Misty stops within 0.5 s.
 Speeds, deadzone, speed levels and axis inversion are in `misty_params.yaml`.
@@ -226,6 +234,7 @@ depth camera as a laser scan; `nav_stack:=custom` runs the older custom stack
 (below) instead.
 
 **Before the first real run:**
+
 1. Measure the markers: `marker_map` at the top of `misty_params.yaml`,
    `{"id": [x, y, facing_deg]}` in metres. Choose any origin and x direction
    on the floor; `facing_deg` is where the printed side faces. Misty's start
@@ -244,16 +253,16 @@ the spot to find one.
 
 How the pieces connect:
 
-| Node | Package | Does |
-|---|---|---|
-| `misty_sensors`, `misty_camera`, `misty_teleop` | misty_ros | Misty's HTTP / websocket API ↔ ROS (no open-source Misty driver exists) |
-| `robot_state_publisher` | standard | `urdf/misty.urdf`: camera, ToF, depth frames |
-| `misty_wheel_odom` | misty_ros | encoders → `nav_msgs/Odometry` |
-| `ekf_odom`, `ekf_map` | robot_localization | odom + IMU → `odom→base_link`; + marker fixes → `map→odom` (`config/localization.yaml`) |
-| `aruco_tracker` | aruco_opencv | marker poses from the camera stream |
-| `misty_marker_localizer` | misty_ros | marker pose + `marker_map` → robot pose fix |
-| Nav2 servers | nav2_* | `config/nav2_params.yaml`; output `/nav/cmd_vel` (m/s) → `misty_teleop` |
-| `misty_nav` (mission) | misty_ros | NAV buttons → `NavigateToPose` goals, reactions |
+| Node                                            | Package            | Does                                                                                    |
+| ----------------------------------------------- | ------------------ | --------------------------------------------------------------------------------------- |
+| `misty_sensors`, `misty_camera`, `misty_teleop` | misty_ros          | Misty's HTTP / websocket API ↔ ROS (no open-source Misty driver exists)                 |
+| `robot_state_publisher`                         | standard           | `urdf/misty.urdf`: camera, ToF, depth frames                                            |
+| `misty_wheel_odom`                              | misty_ros          | encoders → `nav_msgs/Odometry`                                                          |
+| `ekf_odom`, `ekf_map`                           | robot_localization | odom + IMU → `odom→base_link`; + marker fixes → `map→odom` (`config/localization.yaml`) |
+| `aruco_tracker`                                 | aruco_opencv       | marker poses from the camera stream                                                     |
+| `misty_marker_localizer`                        | misty_ros          | marker pose + `marker_map` → robot pose fix                                             |
+| Nav2 servers                                    | nav2_*             | `config/nav2_params.yaml`; output `/nav/cmd_vel` (m/s) → `misty_teleop`                 |
+| `misty_nav` (mission)                           | misty_ros          | NAV buttons → `NavigateToPose` goals, reactions                                         |
 
 Single-marker heading is only trusted within 2 m and when the solved marker
 faces the camera: OpenCV 4.10's IPPE solver (used by aruco_opencv) sometimes
@@ -270,12 +279,12 @@ Misty drives to the ArUco markers in `mission` (in `misty_params.yaml`,
 section `misty_nav`), in order, avoiding obstacles. The marker's role decides
 what happens on arrival:
 
-| Role | Default ids | On arrival |
-|------|-------------|------------|
-| start | 1 | greeting (`start_reaction`), then waits for **NAV GO** |
-| fail | 2 | only if `fail_trigger` is true: failure (`fail_reaction`), waits for **NAV GO** |
-| goal | 3 | arrival (`goal_reaction`), mission done |
-| other ids in `mission` | | waypoint, drives on |
+| Role                   | Default ids | On arrival                                                                      |
+| ---------------------- | ----------- | ------------------------------------------------------------------------------- |
+| start                  | 1           | greeting (`start_reaction`), then waits for **NAV GO**                          |
+| fail                   | 2           | only if `fail_trigger` is true: failure (`fail_reaction`), waits for **NAV GO** |
+| goal                   | 3           | arrival (`goal_reaction`), mission done                                         |
+| other ids in `mission` |             | waypoint, drives on                                                             |
 
 The wizard sets `fail_trigger` at runtime in Foxglove's Parameters panel
 (`/misty_nav` → `fail_trigger`), or `ros2 param set /misty_nav fail_trigger true`.
@@ -283,6 +292,7 @@ Foxglove **Navigation** tab: NAV START, NAV GO, NAV PAUSE, NAV RESET and a 3D
 view of the SLAM map; **■ STOP all** / controller **B** also pause navigation.
 
 How it works:
+
 - `misty_sensors`: Misty's wheel encoders, IMU, time-of-flight sensors and
   on-board ArUco detector → ROS (`aruco_source: opencv` detects markers in the
   VM from the camera images instead; optional depth-camera obstacle scan).
