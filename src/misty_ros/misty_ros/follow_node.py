@@ -1,26 +1,29 @@
 """Marker follower: lock onto the target ArUco marker and drive straight at it.
 
-A light alternative to Nav2 (study.launch.py nav:=follow, the default): no map, no
-odometry. Steering comes directly from the detection (bearing and
-distance in the camera frame, plus the measured head yaw from /misty/head_state,
-since the camera turns with the head), so it doesn't depend on speed calibration.
+Default navigation of study.launch.py (nav:=follow). No map: steering comes from
+the detection (bearing and distance in the camera frame, plus the measured head yaw,
+minus what Misty has turned since the detection: detections arrive late).
 
-    target in view   drive towards it (turning towards it while driving); stop
-                     standoff_m in front of it -> /nav/arrived
-    off-centre       > turn_only_deg: turn part of the way in place, stand still
-                     (settle_s) and decide again on a detection taken after stopping
-    new target not   search: turn search_step_deg in place, stop and look, repeat for
-      in view        one full turn (IMU); then stand still and wait: the wizard steers
-                     Misty (controller / Foxglove DRIVE override this node in twist_mux)
-                     until she sees it, then she takes over by herself
-    lost (overshoot) one turn back to where it must be (IMU), then look
-    obstacle         front time-of-flight closer than stop_m: stop and wait until the
-                     wizard has steered her clear
+    in view, within turn_only_deg   drive towards it, steering (at least min_angular,
+                                    smaller doesn't turn Misty); straight within
+                                    center_deadband_deg; stop standoff_m in front of it
+                                    -> /nav/arrived
+    in view, further off-centre     turn part of the way in place (IMU), stand still
+                                    (settle_s), decide again on a fresh detection
+    lost right after an overshoot   one turn back to where it must be (IMU), then look
+    new target not in view          turn continuously in place until it's seen (one
+                                    full turn at most); then stand still and wait for the
+                                    wizard to steer Misty until she sees it
+    obstacle (front ToF < stop_m)   simple avoidance: turn avoid_turn_deg away from it
+                                    (towards the freer side if the side ToFs say so),
+                                    drive avoid_forward_m, then turn back / search
+The head is kept neutral while driving (the camera is in the head). The wizard's
+controller / Foxglove DRIVE always override this node (twist_mux); B / STOP pauses it,
+START / RESUME (or NAV_GO) continues.
 
-Same interface as mission_node (node name misty_nav), so the study and the Foxglove
-buttons work unchanged: /wizard/event NAV_GOTO:<id> (study), NAV_START (the
-`mission` list with start/fail/goal roles), NAV_GO, NAV_PAUSE (also STOP),
-NAV_RESET; /nav/status (latched), /nav/arrived, REACT:<name> for mission roles.
+Same interface as mission_node (node name misty_nav): /wizard/event NAV_GOTO:<id>
+(study), NAV_START (the `mission` list with start/fail/goal roles), NAV_GO,
+NAV_PAUSE / STOP, RESUME, NAV_RESET; /nav/status (latched), /nav/arrived, REACT:<name>.
 Output: /nav/cmd_vel (TwistStamped, m/s) -> twist_mux (priority 10) -> Misty.
 """
 import json
@@ -40,9 +43,13 @@ def clamp(v, lo, hi):
     return max(lo, min(hi, v))
 
 
+def wrap(a):
+    return math.atan2(math.sin(a), math.cos(a))
+
+
 class Follower(Node):
     def __init__(self):
-        super().__init__('misty_nav')            # same name as mission_node: same Foxglove parameters
+        super().__init__('misty_nav')
         P = self.declare_parameter
         P('mission', [1, 2, 3])                 # NAV_START: drive to these markers in order
         P('start_markers', [1])
@@ -57,32 +64,31 @@ class Follower(Node):
         P('wait_after_fail', True)
         P('head_pitch_deg', 0.0)                # head pose while driving (camera forward)
         P('head_tolerance_deg', 5.0)            # re-centre the head when it's further off than this
+        P('flip_x', False)                      # True if the detector's x axis points left
         P('standoff_m', 0.6)                    # stop this far from the marker (camera to marker)
         P('arrive_tol_m', 0.08)
         P('max_linear', 0.20)                   # m/s
-        P('min_linear', 0.06)                   # m/s: slower than this Misty doesn't move
+        P('min_linear', 0.06)                   # m/s
         P('k_linear', 0.5)                      # m/s per metre of remaining distance
-        P('max_angular', 0.25)                  # rad/s: steering while driving, at most
-        P('min_angular', 0.15)                  # rad/s: steering at least this (smaller doesn't turn Misty)
         P('k_angular', 0.5)                     # rad/s per rad of bearing
+        P('min_angular', 0.15)                  # rad/s: steering at least this (smaller doesn't turn Misty)
+        P('max_angular', 0.25)                  # rad/s: steering while driving, at most
         P('center_deadband_deg', 6.0)           # marker this close to the centre: drive straight
-        P('turn_rate', 0.3)                     # rad/s for turns in place (must overcome Misty's dead zone)
-        P('flip_x', False)                      # True if the detector's x axis points left (sign check)
-        P('turn_only_deg', 20.0)                # drive window: marker within this -> drive (steering);
-                                                # further off-centre -> turn in place, then settle
-        P('turn_fraction', 0.6)                 # turn this share of the angle, then stop and look again
-                                                # (Misty keeps turning a bit after the stop command)
-        P('settle_s', 0.8)                      # after turning in place: stand still this long and use a
-                                                # detection taken AFTER stopping before deciding again
-        P('reacquire_s', 5.0)                   # lost after an overshoot: turn back towards where the
-                                                # marker must be (IMU) once, then look
-        P('search_on_new_target', True)         # new target not in view: turn in place in steps to find it
-        P('search_step_deg', 30.0)              # search: turn this much, ...
-        P('search_look_s', 1.2)                 # ... stand still this long to look, repeat (one full turn)
-        P('search_direction', 1.0)              # +1 = turn left, -1 = right
-        P('lost_timeout_s', 1.0)                # no detection for this long: stop and wait
-        P('stop_m', 0.35)                       # front ToF closer than this: stop
+        P('turn_only_deg', 20.0)                # drive window; further off-centre: turn in place
+        P('turn_rate', 0.3)                     # rad/s for turns in place
+        P('turn_fraction', 0.6)                 # turn this share of the angle, then settle and look
+        P('settle_s', 0.8)                      # stand still after an in-place turn
+        P('lost_timeout_s', 1.0)                # no detection for this long: target lost
+        P('reacquire_s', 5.0)                   # lost this recently: turn back to where it must be
+        P('search_on_new_target', True)         # new target not in view: turn in place to find it
+        P('search_rate', 0.3)                   # rad/s, continuous, one full turn at most
+        P('search_direction', 1.0)              # +1 = left, -1 = right
+        P('stop_m', 0.35)                       # front ToF closer than this: obstacle
         P('obstacle_sensors', ['tof_center'])   # Range frame_ids that count as "in the path"
+        P('avoid', True)                        # False: just stop at obstacles (the wizard steers)
+        P('avoid_turn_deg', 45.0)               # avoidance: turn this far away from the obstacle,
+        P('avoid_forward_m', 0.4)               # ... drive this far, then turn back / search
+        P('avoid_speed', 0.12)                  # m/s
         P('rate', 10.0)
 
         latched = QoSProfile(depth=1, durability=DurabilityPolicy.TRANSIENT_LOCAL)
@@ -95,25 +101,20 @@ class Follower(Node):
         self.create_subscription(String, 'misty/markers', self.on_markers, 20)
         self.create_subscription(Range, 'misty/tof', self.on_tof, 50)
         self.create_subscription(Vector3, 'misty/head_state', self.on_head, 10)
-        self.head_yaw = (0.0, 0.0)              # (time, degrees + = left): the camera turns with the head
-        self.head_pitch = 0.0
-        self.last_center = 0.0
-
-        self.state, self.goto, self.index = 'IDLE', None, 0
-        self.paused_from = None
-        self.seen = {}                          # id -> (time, x right, z forward, robot yaw at detection)
-        self.yaw = None                         # IMU yaw (rad): detections are late, so the turn made
-                                                # since a detection is subtracted (latency compensation)
         self.create_subscription(Imu, 'misty/imu', self.on_imu, 50)
+
+        self.state, self.goto, self.index, self.paused_from = 'IDLE', None, 0, None
+        self.seen = {}                          # id -> (time, x right, z forward, IMU yaw at detection)
         self.tof = {}                           # frame -> (time, range, max_range)
-        self.phase, self.phase_until, self.look_since = 'track', 0.0, 0.0
-        self.turn_start_yaw, self.turn_angle, self.turn_dir = None, 0.0, 0.0
-        self.searched, self.search_turned = False, 0.0
-        self.status = ''
-        self.moving = False
+        self.yaw = None
+        self.head = (0.0, 0.0, 0.0)             # (time, pitch, yaw) degrees, measured
+        self.last_center = 0.0
+        self.status, self.moving = '', False
+        self.reset_phase()
         self.create_timer(1.0 / float(self.p('rate')), self.tick)
         self.set_status('IDLE: press NAV START (or a study state that drives)')
 
+    # ------------------------------------------------------------------ basics
     def p(self, name):
         return self.get_parameter(name).value
 
@@ -123,34 +124,39 @@ class Follower(Node):
             self.status_pub.publish(String(data=text))
             self.get_logger().info(text)
 
-    # ---------------------------------------------------------------- inputs
+    def reset_phase(self):
+        self.phase, self.phase_until, self.look_since = 'track', 0.0, 0.0
+        self.turn_dir, self.turn_angle, self.turn_speed, self.turn_yaw0 = 0.0, 0.0, 0.0, None
+        self.searched, self.search_turned, self.search_last_yaw = False, 0.0, None
+
+    def drive(self, v, w):
+        msg = TwistStamped()
+        msg.header.stamp = self.get_clock().now().to_msg()
+        msg.header.frame_id = 'base_link'
+        msg.twist.linear.x, msg.twist.angular.z = float(v), float(w)
+        self.cmd.publish(msg)
+        self.moving = v != 0.0 or w != 0.0
+
+    def stop(self):
+        self.drive(0.0, 0.0)
+
+    # ------------------------------------------------------------------ inputs
     def on_markers(self, msg):
         try:
             data = json.loads(msg.data)
-        except ValueError:
-            return
-        now = time.monotonic()
-        for d in data.get('detections', []):
-            x = -float(d['x']) if self.p('flip_x') else float(d['x'])
-            self.seen[int(d['id'])] = (now, x, float(d['z']), self.yaw)
+            now = time.monotonic()
+            for d in data.get('detections', []):
+                x = float(d['x'])
+                self.seen[int(d['id'])] = (now, -x if self.p('flip_x') else x, float(d['z']), self.yaw)
+        except (ValueError, KeyError, TypeError) as e:
+            self.get_logger().warning(f'bad /misty/markers message: {e}', throttle_duration_sec=10.0)
 
     def on_imu(self, msg):
         q = msg.orientation
         self.yaw = math.atan2(2 * (q.w * q.z + q.x * q.y), 1 - 2 * (q.y * q.y + q.z * q.z))
 
     def on_head(self, msg):
-        self.head_yaw = (time.monotonic(), float(msg.z))
-        self.head_pitch = float(msg.x)
-
-    def center_head(self, force=False):
-        """Keep the head (camera) neutral while driving: re-centre it if it's more than
-        head_tolerance_deg off (e.g. the wizard turned it), at most once a second."""
-        now = time.monotonic()
-        off = abs(self.head_yaw[1]) > float(self.p('head_tolerance_deg')) or \
-            abs(self.head_pitch - float(self.p('head_pitch_deg'))) > float(self.p('head_tolerance_deg'))
-        if (force or off) and now - self.last_center > 1.0:
-            self.head_goal.publish(Vector3(x=float(self.p('head_pitch_deg')), y=0.0, z=0.0))
-            self.last_center = now
+        self.head = (time.monotonic(), float(msg.x), float(msg.z))
 
     def on_tof(self, msg):
         self.tof[msg.header.frame_id] = (time.monotonic(), msg.range, msg.max_range)
@@ -168,16 +174,17 @@ class Follower(Node):
             if self.state in ('IDLE', 'DONE'):
                 self.index = 0
             self.begin()
-        elif e == 'NAV_GO':
-            if self.state == 'WAIT':
-                self.index += 1
-                self.begin()
-            elif self.state == 'PAUSED':
+        elif e in ('NAV_GO', 'RESUME'):
+            if self.state == 'PAUSED':
                 self.state = self.paused_from or 'IDLE'
                 self.set_status(f'resumed: {self.state}')
+            elif e == 'NAV_GO' and self.state == 'WAIT':
+                self.index += 1
+                self.begin()
         elif e in ('NAV_PAUSE', 'STOP'):
             if self.state == 'FOLLOW':
-                self.paused_from, self.state = self.state, 'PAUSED'
+                self.paused_from, self.state = 'FOLLOW', 'PAUSED'
+                self.reset_phase()
                 self.stop()
                 self.set_status('PAUSED: NAV GO / RESUME to continue')
         elif e == 'NAV_RESET':
@@ -185,7 +192,7 @@ class Follower(Node):
             self.stop()
             self.set_status('IDLE (reset): press NAV START')
 
-    # ---------------------------------------------------------------- logic
+    # ------------------------------------------------------------------ helpers
     def target(self):
         if self.goto is not None:
             return self.goto
@@ -200,163 +207,181 @@ class Follower(Node):
 
     def begin(self):
         mid = self.target()
+        self.reset_phase()
         if mid is None:
             self.state = 'DONE'
             self.stop()
-            self.set_status('DONE: mission complete')
-            return
-        self.last_center = 0.0
+            return self.set_status('DONE: mission complete')
         self.center_head(force=True)
-        self.phase, self.searched, self.search_turned = 'track', False, 0.0
         self.state = 'FOLLOW'
         self.set_status(f'FOLLOW marker {mid}')
 
-    def drive(self, v, w):
-        msg = TwistStamped()
-        msg.header.stamp = self.get_clock().now().to_msg()
-        msg.header.frame_id = 'base_link'
-        msg.twist.linear.x, msg.twist.angular.z = float(v), float(w)
-        self.cmd.publish(msg)
-        self.moving = v != 0.0 or w != 0.0
+    def center_head(self, force=False):
+        """The camera is in the head: keep it neutral while driving (re-centre at most 1/s)."""
+        _, pitch, yaw = self.head
+        tol, pitch0 = float(self.p('head_tolerance_deg')), float(self.p('head_pitch_deg'))
+        if (force or abs(yaw) > tol or abs(pitch - pitch0) > tol) and time.monotonic() - self.last_center > 1.0:
+            self.head_goal.publish(Vector3(x=pitch0, y=0.0, z=0.0))
+            self.last_center = time.monotonic()
 
-    def stop(self):
-        self.drive(0.0, 0.0)
+    def turned_since(self, yaw0):
+        return 0.0 if yaw0 is None or self.yaw is None else wrap(self.yaw - yaw0)
 
-    def blocked(self):
+    def bearing_of(self, s):
+        """Body bearing to the marker now (+ = left)."""
+        _, x, z, yaw_then = s
+        head = self.head[2] if time.monotonic() - self.head[0] < 3.0 else 0.0
+        return math.atan2(-x, z) + math.radians(head) - self.turned_since(yaw_then)
+
+    def obstacle(self):
         now = time.monotonic()
         near = [r for f, (t, r, mx) in self.tof.items()
                 if f in self.p('obstacle_sensors') and now - t < 1.0 and r < mx and r < float(self.p('stop_m'))]
         return min(near) if near else None
 
-    def turned_since(self, yaw0):
-        if yaw0 is None or self.yaw is None:
-            return 0.0
-        return math.atan2(math.sin(self.yaw - yaw0), math.cos(self.yaw - yaw0))
+    def free_side(self):
+        """+1 = left looks freer, -1 = right, by the side ToFs (if their readings are valid)."""
+        now = time.monotonic()
+        rng = {}
+        for f in ('tof_left', 'tof_right'):
+            t, r, mx = self.tof.get(f, (0.0, math.inf, math.inf))
+            rng[f] = r if now - t < 1.0 and r > 0.05 else mx      # < 5 cm: blocked / bogus -> ignore
+        return 1.0 if rng['tof_left'] >= rng['tof_right'] else -1.0
 
-    def start_turn(self, angle, phase, rate):
-        """Turn in place by `angle` (rad, + = left), measured with the IMU (time limit as a backup)."""
-        self.phase, self.turn_angle, self.turn_dir = phase, abs(angle), math.copysign(1.0, angle)
-        self.turn_start_yaw = self.yaw
-        self.phase_until = time.monotonic() + max(0.4, abs(angle) / max(rate, 0.05) * 2.0)
+    # ------------------------------------------------------------------ phases
+    def start_turn(self, angle, rate, phase='turn'):
+        self.phase, self.turn_dir, self.turn_angle = phase, math.copysign(1.0, angle), abs(angle)
+        self.turn_speed, self.turn_yaw0 = rate, self.yaw
+        self.phase_until = time.monotonic() + max(0.5, abs(angle) / max(rate, 0.05) * 2.0)
         self.drive(0.0, self.turn_dir * rate)
 
-    def turn_done(self, now):
-        if self.yaw is not None and self.turn_start_yaw is not None:
-            if self.turn_dir * self.turned_since(self.turn_start_yaw) >= self.turn_angle:
-                return True
+    def turn_finished(self, now):
+        if self.turn_yaw0 is not None and self.yaw is not None \
+                and self.turn_dir * self.turned_since(self.turn_yaw0) >= self.turn_angle:
+            return True
         return now >= self.phase_until
 
-    def look(self, phase, seconds):
-        """Stop, and accept only detections made after stopping."""
+    def settle(self, seconds):
         self.stop()
-        self.phase, self.look_since, self.phase_until = phase, time.monotonic(), time.monotonic() + seconds
-
-    def bearing_of(self, s):
-        """Bearing from the body to the marker now (+ = left): camera bearing at detection time + head
-        yaw - what Misty has turned since the detection (detections arrive late)."""
-        _, x, z, yaw_then = s
-        head = self.head_yaw[1] if time.monotonic() - self.head_yaw[0] < 3.0 else 0.0
-        return math.atan2(-x, z) + math.radians(head) - self.turned_since(yaw_then), head
+        self.phase, self.look_since, self.phase_until = 'settle', time.monotonic(), time.monotonic() + seconds
 
     def tick(self):
         if self.state != 'FOLLOW':
             return
-        self.center_head()
-        mid = self.target()
-        now = time.monotonic()
-        s = self.seen.get(mid)
-        rate = float(self.p('turn_rate'))                     # in-place turns
+        try:
+            self.step()
+        except Exception as e:                  # never die mid-run: stop and report
+            self.stop()
+            self.get_logger().error(f'follower error: {e!r}', throttle_duration_sec=5.0)
 
-        # ---- running in-place turns: finish them, then stand still and look
-        if self.phase in ('turn', 'search_turn'):
-            if self.phase == 'search_turn' and s is not None and s[0] > self.look_since:
-                self.look('settle', float(self.p('settle_s')))      # found it while turning
-            elif self.turn_done(now):
-                if self.phase == 'search_turn':
-                    self.search_turned += abs(self.turned_since(self.turn_start_yaw)) or self.turn_angle
-                    self.look('search_look', float(self.p('search_look_s')))
+    def step(self):
+        self.center_head()
+        mid, now = self.target(), time.monotonic()
+        s = self.seen.get(mid)
+        fresh = s is not None and now - s[0] <= float(self.p('lost_timeout_s'))
+
+        # ---- running manoeuvres
+        if self.phase in ('turn', 'avoid_turn'):
+            if self.turn_finished(now):
+                if self.phase == 'avoid_turn':      # avoidance: now drive past the obstacle
+                    self.phase = 'avoid_drive'
+                    self.phase_until = now + float(self.p('avoid_forward_m')) / float(self.p('avoid_speed'))
                 else:
-                    self.look('settle', float(self.p('settle_s')))
+                    self.settle(float(self.p('settle_s')))
             else:
-                self.drive(0.0, self.turn_dir * rate)
+                self.drive(0.0, self.turn_dir * self.turn_speed)
             return
-        if self.phase in ('settle', 'search_look'):
-            fresh = s is not None and s[0] > self.look_since
-            if now < self.phase_until or (self.phase == 'settle' and not fresh
-                                          and now < self.phase_until + float(self.p('lost_timeout_s'))):
-                return                                           # stand still, wait for a new detection
-            if self.phase == 'search_look' and not fresh:
-                if self.search_turned >= 2 * math.pi - 0.1:
-                    self.phase = 'wait'
-                else:
-                    self.start_turn(math.copysign(math.radians(float(self.p('search_step_deg'))),
-                                                  float(self.p('search_direction'))), 'search_turn', rate)
-                    self.set_status(f'SEARCH marker {mid}: turning to look '
-                                    f'({math.degrees(self.search_turned):.0f} deg so far)')
-                    return
+        if self.phase == 'avoid_drive':
+            if self.obstacle() is not None:         # still blocked: turn further away
+                return self.start_avoid()
+            if now < self.phase_until:
+                self.drive(float(self.p('avoid_speed')), 0.0)
+                return self.set_status(f'AVOID: driving past the obstacle (marker {mid})')
+            self.phase, self.searched = 'track', False  # done: find the marker again
+        if self.phase == 'search':
+            if self.yaw is not None and self.search_last_yaw is not None:
+                self.search_turned += abs(self.turned_since(self.search_last_yaw))
+            self.search_last_yaw = self.yaw
+            if s is not None and s[0] > self.look_since:
+                self.phase = 'track'                # found it: track right away
+            elif self.search_turned >= 2 * math.pi or now >= self.phase_until:
+                self.stop()
+                self.phase = 'wait'
             else:
-                self.phase = 'track'
+                self.drive(0.0, self.turn_dir * self.turn_speed)
+                return
+        if self.phase == 'settle':
+            seen_recently = s is not None and now - s[0] < float(self.p('reacquire_s'))
+            new = s is not None and s[0] > self.look_since
+            if now < self.phase_until or (not new and seen_recently
+                                          and now < self.phase_until + float(self.p('lost_timeout_s'))):
+                return
+            self.phase = 'track'
 
         # ---- target not in view
-        lost = s is None or now - s[0] > float(self.p('lost_timeout_s'))
-        if lost:
+        if not fresh:
             recent = s is not None and now - s[0] < float(self.p('reacquire_s'))
             if self.phase == 'track' and recent and s[3] is not None and self.yaw is not None:
-                bearing, _ = self.bearing_of(s)                  # overshoot: one turn back, then look
+                bearing = self.bearing_of(s)        # overshoot: turn back once, then look
                 if abs(bearing) > math.radians(float(self.p('center_deadband_deg'))):
-                    self.start_turn(bearing * float(self.p('turn_fraction')), 'turn', 0.7 * rate)
-                    self.set_status(f'REACQUIRE marker {mid}: turning back {math.degrees(bearing):+.0f} deg')
-                    return
-            if self.phase == 'track' and not self.searched and self.p('search_on_new_target') and not recent:
-                self.searched, self.search_turned = True, 0.0
-                self.look('search_look', 0.5)                    # first a short look, then turn in steps
-                self.set_status(f'SEARCH marker {mid}: looking around')
-                return
+                    self.start_turn(bearing * float(self.p('turn_fraction')), 0.7 * float(self.p('turn_rate')))
+                    return self.set_status(f'REACQUIRE marker {mid}: turning back {math.degrees(bearing):+.0f} deg')
+            if self.phase == 'track' and not self.searched and self.p('search_on_new_target'):
+                self.searched = True
+                self.search_turned, self.search_last_yaw, self.look_since = 0.0, self.yaw, now
+                self.start_turn(math.copysign(2 * math.pi, float(self.p('search_direction'))),
+                                float(self.p('search_rate')), phase='search')
+                return self.set_status(f'SEARCH marker {mid}: turning to find it')
             if self.moving:
                 self.stop()
             self.phase = 'wait'
             last = '' if s is None else f' (last seen {now - s[0]:.0f} s ago)'
-            self.set_status(f'WAITING: marker {mid} not in view{last}. Steer Misty until she sees it')
-            return
+            return self.set_status(f'WAITING: marker {mid} not in view{last}. Steer Misty until she sees it')
 
         # ---- target in view
         self.phase = 'track'
-        bearing, head = self.bearing_of(s)
+        bearing = self.bearing_of(s)
         dist = math.hypot(s[1], s[2])
         err = dist - float(self.p('standoff_m'))
         if err <= float(self.p('arrive_tol_m')):
             self.stop()
             return self.arrive(mid, dist)
-        obstacle = self.blocked()
+        obstacle = self.obstacle()
         if obstacle is not None:
+            if self.p('avoid'):
+                return self.start_avoid(obstacle)
             self.stop()
-            self.set_status(f'BLOCKED: obstacle {obstacle:.2f} m ahead on the way to marker {mid}. '
-                            'Steer Misty around it')
-            return
+            return self.set_status(f'BLOCKED: obstacle {obstacle:.2f} m ahead (marker {mid}). Steer Misty around it')
         if abs(bearing) > math.radians(float(self.p('turn_only_deg'))):
-            # far off-centre: turn part of the way in place, then stop and look again (no oscillation)
-            self.start_turn(bearing * float(self.p('turn_fraction')), 'turn', rate)
-            self.set_status(f'FOLLOW marker {mid}: turning {math.degrees(bearing):+.0f} deg')
-            return
-        # inside the drive window: drive, steering with at least min_angular (Misty's dead zone)
+            self.start_turn(bearing * float(self.p('turn_fraction')), float(self.p('turn_rate')))
+            return self.set_status(f'FOLLOW marker {mid}: turning {math.degrees(bearing):+.0f} deg')
         if abs(bearing) < math.radians(float(self.p('center_deadband_deg'))):
-            w = 0.0                                              # close enough to centre: straight
+            w = 0.0
         else:
             w = math.copysign(clamp(abs(float(self.p('k_angular')) * bearing), float(self.p('min_angular')),
                                     float(self.p('max_angular'))), bearing)
         v = clamp(float(self.p('k_linear')) * err, float(self.p('min_linear')), float(self.p('max_linear')))
         self.drive(v * math.cos(bearing), w)
-        self.set_status(f'FOLLOW marker {mid}: {err:.2f} m to go, {math.degrees(bearing):+.0f} deg'
-                        + (f' (head {head:+.0f} deg)' if abs(head) > 3 else ''))
+        self.set_status(f'FOLLOW marker {mid}: {err:.2f} m to go, {math.degrees(bearing):+.0f} deg')
+
+    def start_avoid(self, obstacle=None):
+        side = self.free_side()
+        self.start_turn(side * math.radians(float(self.p('avoid_turn_deg'))), float(self.p('turn_rate')),
+                        phase='avoid_turn')
+        what = f'{obstacle:.2f} m ' if obstacle is not None else ''
+        self.set_status(f'AVOID: obstacle {what}ahead, turning {"left" if side > 0 else "right"}')
 
     def arrive(self, mid, dist):
         self.set_status(f'ARRIVED at marker {mid} ({dist:.2f} m)')
-        if self.goto is not None:                       # study target: report, no reactions
+        if self.goto is not None:               # study target: report, no reactions
             self.state = 'ARRIVED'
             self.arrived_pub.publish(String(data=str(mid)))
             return
         role = self.role(mid)
-        react = lambda r: r and self.wizard.publish(String(data=f'REACT:{r}'))
+
+        def react(name):
+            if name:
+                self.wizard.publish(String(data=f'REACT:{name}'))
         if role == 'start':
             react(self.p('start_reaction'))
             if self.p('wait_after_start'):
@@ -385,7 +410,10 @@ def main():
     except (KeyboardInterrupt, ExternalShutdownException):
         pass
     finally:
-        node.stop()
+        try:
+            node.stop()
+        except Exception:
+            pass
         node.destroy_node()
         if rclpy.ok():
             rclpy.shutdown()

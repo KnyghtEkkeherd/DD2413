@@ -74,7 +74,7 @@ misty_camera:
     stream_port: 5678
     rtsp_port: 1936
     rtsp_fps: 15
-    rotate_deg: 0           # rotate frames clockwise (AV stream is rotated: try 90)
+    rotate_deg: 90          # rotate frames clockwise: Misty's stream comes rotated 90 deg counter-clockwise
     fps: 2.0                # poll mode (and poll fallback)
 
 # ------------------------------------------------- autonomous navigation
@@ -83,6 +83,12 @@ misty_camera:
 
 misty_nav:
   ros__parameters:
+    # follow mode (default): obstacle avoidance -- front ToF closer than stop_m: turn
+    # avoid_turn_deg away, drive avoid_forward_m, then find the marker again (avoid: false = just stop)
+    avoid: true
+    stop_m: 0.35
+    avoid_turn_deg: 45.0
+    avoid_forward_m: 0.4
     # Mission: ArUco marker ids to drive to, in order. The marker's role sets
     # what happens on arrival.
     mission: [1, 2, 3]
